@@ -201,7 +201,7 @@ class _DetailScreenState extends State<DetailScreen> {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: images.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, _) =>
                                 const SizedBox(width: 10),
                             itemBuilder: (context, i) => GestureDetector(
                               onTap: () =>

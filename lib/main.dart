@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'screens/home_screens.dart';
+import 'package:sistem_travel/screens/login_screen.dart';
 import 'theme.dart';
 
 void main() {
@@ -22,7 +22,7 @@ class LuminaTravelApp extends StatelessWidget {
       title: 'Lumina Travel',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      home: const HomeScreen(),
+      home: const LoginScreen(),
     );
   }
 }

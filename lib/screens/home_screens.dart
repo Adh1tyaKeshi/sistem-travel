@@ -179,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     itemCount: _categories.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    separatorBuilder: (_, _) => const SizedBox(width: 10),
                     itemBuilder: (context, i) => CategoryChip(
                       icon: _categories[i].icon,
                       label: _categories[i].label,
@@ -223,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     itemCount: _destinations.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 14),
+                    separatorBuilder: (_, _) => const SizedBox(width: 14),
                     itemBuilder: (context, i) => DestinationCard(
                       destination: _destinations[i],
                       onTap: () => Navigator.push(
