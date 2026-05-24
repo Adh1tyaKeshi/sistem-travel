@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'register_screen.dart';
-import 'home_screens.dart';
+import 'package:sistem_travel/main.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -51,8 +51,8 @@ class _LoginScreenState extends State<LoginScreen>
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, _, _) => const HomeScreen(),
-        transitionsBuilder: (_, anim, _, child) =>
+        pageBuilder: (_, __, ___) => const MainScaffold(),
+        transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 600),
       ),
@@ -112,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen>
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
+                          const Text(
                             'LUMINA',
                             style: TextStyle(
                               color: Colors.white,
@@ -130,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen>
                               shape: BoxShape.circle,
                             ),
                           ),
-                          Text(
+                          const Text(
                             'TRAVEL',
                             style: TextStyle(
                               color: Colors.white,
@@ -146,8 +146,8 @@ class _LoginScreenState extends State<LoginScreen>
                     const SizedBox(height: 12),
 
                     // Hero tagline
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 28),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -161,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen>
                               letterSpacing: -1,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          SizedBox(height: 6),
                           Text(
                             'Explorer.',
                             style: TextStyle(
@@ -184,7 +184,6 @@ class _LoginScreenState extends State<LoginScreen>
                       child: SlideTransition(
                         position: _slideAnim,
                         child: Container(
-                          margin: const EdgeInsets.only(top: 0),
                           decoration: BoxDecoration(
                             color: AppColors.surface,
                             borderRadius: const BorderRadius.vertical(
@@ -268,7 +267,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
                                   onPressed: () {},
-                                  child: Text(
+                                  child: const Text(
                                     'Forgot password?',
                                     style: TextStyle(
                                       color: AppColors.primary,
@@ -305,10 +304,10 @@ class _LoginScreenState extends State<LoginScreen>
                                     onTap: () => Navigator.push(
                                       context,
                                       PageRouteBuilder(
-                                        pageBuilder: (_, _, _) =>
+                                        pageBuilder: (_, __, ___) =>
                                             const RegisterScreen(),
                                         transitionsBuilder:
-                                            (_, anim, _, child) =>
+                                            (_, anim, __, child) =>
                                                 FadeTransition(
                                                   opacity: anim,
                                                   child: child,
