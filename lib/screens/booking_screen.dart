@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/destination.dart';
 import '../theme.dart';
-import 'detail_screen.dart';
 
 // ─────────────────────────────────────────
 // BOOKING MODEL (sementara, nanti dari Supabase)
