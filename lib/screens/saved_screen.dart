@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/destination.dart';
 import '../theme.dart';
 import 'detail_screen.dart';
+// ignore: unused_import
 
 class SavedScreen extends StatefulWidget {
   const SavedScreen({super.key});
@@ -12,7 +13,10 @@ class SavedScreen extends StatefulWidget {
 
 class _SavedScreenState extends State<SavedScreen> {
   // Nanti diganti dengan data dari Supabase
-  final List<Destination> _savedDestinations = dummyDestinations;
+  // List.from() membuat copy baru — tidak memodifikasi dummyDestinations aslinya
+  late final List<Destination> _savedDestinations = List.from(
+    dummyDestinations,
+  );
 
   void _removeFromSaved(String id) {
     setState(() => _savedDestinations.removeWhere((d) => d.id == id));
