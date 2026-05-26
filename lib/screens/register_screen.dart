@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'login_screen.dart';
 import 'home_screens.dart';
+import '../main.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -77,14 +78,19 @@ class _RegisterScreenState extends State<RegisterScreen>
       );
       return;
     }
+
     setState(() => _isLoading = true);
+
     await Future.delayed(const Duration(milliseconds: 1500));
+
     if (!mounted) return;
+
     setState(() => _isLoading = false);
+
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, _, _) => const HomeScreen(),
+        pageBuilder: (_, _, _) => const MainScaffold(),
         transitionsBuilder: (_, anim, _, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 600),
