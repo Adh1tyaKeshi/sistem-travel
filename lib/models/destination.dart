@@ -31,23 +31,29 @@ class Destination {
 
   // Siap untuk JSON nanti
   factory Destination.fromJson(Map<String, dynamic> json) {
+    final images = json['destination_images'] as List?;
+
+    final gallery = images != null
+        ? images.map((e) => e['image_url'].toString()).toList()
+        : <String>[];
+
     return Destination(
-      id: json['id'],
-      name: json['name'],
-      country: json['country'],
-      imageUrl: json['image_url'],
-      galleryImages: List<String>.from(json['gallery_images'] ?? []),
-      rating: (json['rating'] as num).toDouble(),
-      reviewCount: json['review_count'],
-      pricePerNight: (json['price_per_night'] as num).toDouble(),
-      description: json['description'],
-      beds: json['beds'],
-      baths: json['baths'],
+      id: json['id'].toString(),
+      name: json['name'] ?? '',
+      country: json['country'] ?? '',
+      imageUrl:
+          json['cover_image_url'] ?? (gallery.isNotEmpty ? gallery.first : ''),
+      galleryImages: gallery,
+      rating: (json['rating'] ?? 0).toDouble(),
+      reviewCount: json['review_count'] ?? 0,
+      pricePerNight: (json['price_per_night'] ?? 0).toDouble(),
+      description: json['description'] ?? '',
+      beds: json['beds'] ?? 0,
+      baths: json['baths'] ?? 0,
       hasPool: json['has_pool'] ?? false,
       hasWifi: json['has_wifi'] ?? false,
     );
   }
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
