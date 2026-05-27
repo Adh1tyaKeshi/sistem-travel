@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/destination.dart';
+import '../services/destination_services.dart';
 import '../theme.dart';
 import 'detail_screen.dart';
 
@@ -11,11 +12,33 @@ class SeeAllScreen extends StatefulWidget {
 }
 
 class _SeeAllScreenState extends State<SeeAllScreen> {
+  List<Destination> _destinations = [];
+  bool _isLoading = true;
   String _sortBy = 'Popular';
   final _sorts = ['Popular', 'Price ↑', 'Price ↓', 'Rating'];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadAll();
+  }
+
+  Future<void> _loadAll() async {
+    try {
+      setState(() => _isLoading = true);
+      final data = await DestinationService.getAll();
+      if (mounted)
+        setState(() {
+          _destinations = data;
+          _isLoading = false;
+        });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   List<Destination> get _sorted {
-    final list = List<Destination>.from(dummyDestinations);
+    final list = List<Destination>.from(_destinations);
     switch (_sortBy) {
       case 'Price ↑':
         list.sort((a, b) => a.pricePerNight.compareTo(b.pricePerNight));
@@ -37,7 +60,7 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── Header ──
+            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Row(
@@ -69,13 +92,16 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
                       ),
                     ),
                   ),
+                  Text(
+                    '${_destinations.length} places',
+                    style: const TextStyle(color: Colors.white38, fontSize: 13),
+                  ),
                 ],
               ),
             ),
+            const SizedBox(height: 16),
 
-            const SizedBox(height: 20),
-
-            // ── Sort chips ──
+            // Sort chips
             SizedBox(
               height: 36,
               child: ListView.separated(
@@ -114,135 +140,152 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
                 },
               ),
             ),
-
             const SizedBox(height: 16),
 
-            // ── Grid ──
+            // Grid
             Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.75,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                ),
-                itemCount: _sorted.length,
-                itemBuilder: (context, i) {
-                  final dest = _sorted[i];
-                  return GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailScreen(destination: dest),
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
                       ),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.network(dest.imageUrl, fit: BoxFit.cover),
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black.withOpacity(0.8),
-                                  ],
-                                  stops: const [0.4, 1.0],
-                                ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadAll,
+                      color: AppColors.primary,
+                      backgroundColor: const Color(0xFF1A1A1A),
+                      child: GridView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.75,
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 14,
+                            ),
+                        itemCount: _sorted.length,
+                        itemBuilder: (context, i) {
+                          final dest = _sorted[i];
+                          return GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => DetailScreen(destination: dest),
                               ),
                             ),
-                            Positioned(
-                              top: 10,
-                              right: 10,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.45),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.35),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(18),
+                                child: Stack(
+                                  fit: StackFit.expand,
                                   children: [
-                                    const Icon(
-                                      Icons.star,
-                                      color: Color(0xFFFFD700),
-                                      size: 11,
+                                    Image.network(
+                                      dest.imageUrl,
+                                      fit: BoxFit.cover,
                                     ),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      '${dest.rating}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.transparent,
+                                            Colors.black.withOpacity(0.8),
+                                          ],
+                                          stops: const [0.4, 1.0],
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 10,
+                                      right: 10,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.45),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.star,
+                                              color: Color(0xFFFFD700),
+                                              size: 11,
+                                            ),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              '${dest.rating}',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      left: 12,
+                                      bottom: 12,
+                                      right: 12,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            dest.name,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            dest.country,
+                                            style: const TextStyle(
+                                              color: Colors.white54,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 5),
+                                          Text(
+                                            '\$${dest.pricePerNight.toStringAsFixed(0)}/night',
+                                            style: const TextStyle(
+                                              color: AppColors.primary,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                             ),
-                            Positioned(
-                              left: 12,
-                              bottom: 12,
-                              right: 12,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    dest.name,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    dest.country,
-                                    style: const TextStyle(
-                                      color: Colors.white54,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    '\$${dest.pricePerNight.toStringAsFixed(0)}/night',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),

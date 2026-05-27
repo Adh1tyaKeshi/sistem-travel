@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/destination.dart';
+import '../services/destination_services.dart';
 import '../theme.dart';
 import 'detail_screen.dart';
 
@@ -12,19 +13,44 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _controller = TextEditingController();
-  String _query = '';
+  List<Destination> _results = [];
+  bool _isLoading = false;
+  bool _hasSearched = false;
   String _selectedCategory = 'All';
 
   final _categories = ['All', 'Beaches', 'Mountains', 'Cities', 'Forests'];
 
-  List<Destination> get _results {
-    return dummyDestinations.where((d) {
-      final matchQuery =
-          _query.isEmpty ||
-          d.name.toLowerCase().contains(_query.toLowerCase()) ||
-          d.country.toLowerCase().contains(_query.toLowerCase());
-      return matchQuery;
-    }).toList();
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _results = [];
+        _hasSearched = false;
+      });
+      return;
+    }
+    setState(() {
+      _isLoading = true;
+      _hasSearched = true;
+    });
+    try {
+      final data = await DestinationService.search(query);
+      if (mounted)
+        setState(() {
+          _results = data;
+          _isLoading = false;
+        });
+    } catch (e) {
+      if (mounted)
+        setState(() {
+          _isLoading = false;
+        });
+    }
   }
 
   @override
@@ -35,7 +61,7 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──
+            // Header + search bar
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Row(
@@ -67,7 +93,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       child: TextField(
                         controller: _controller,
                         autofocus: true,
-                        onChanged: (v) => setState(() => _query = v),
+                        onChanged: (v) => _search(v),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,
@@ -83,11 +109,11 @@ class _SearchScreenState extends State<SearchScreen> {
                             color: Colors.white38,
                             size: 20,
                           ),
-                          suffixIcon: _query.isNotEmpty
+                          suffixIcon: _controller.text.isNotEmpty
                               ? GestureDetector(
                                   onTap: () {
                                     _controller.clear();
-                                    setState(() => _query = '');
+                                    _search('');
                                   },
                                   child: const Icon(
                                     Icons.close,
@@ -108,9 +134,9 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // ── Category filter ──
+            // Category filter
             SizedBox(
               height: 36,
               child: ListView.separated(
@@ -121,8 +147,10 @@ class _SearchScreenState extends State<SearchScreen> {
                 itemBuilder: (context, i) {
                   final selected = _selectedCategory == _categories[i];
                   return GestureDetector(
-                    onTap: () =>
-                        setState(() => _selectedCategory = _categories[i]),
+                    onTap: () {
+                      setState(() => _selectedCategory = _categories[i]);
+                      _search(_controller.text);
+                    },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(
@@ -151,25 +179,34 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // ── Result count ──
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                _query.isEmpty
-                    ? 'All destinations'
-                    : '${_results.length} result${_results.length != 1 ? 's' : ''} for "$_query"',
-                style: const TextStyle(color: Colors.white54, fontSize: 13),
+            // Result count
+            if (_hasSearched)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  _isLoading
+                      ? 'Searching...'
+                      : '${_results.length} result${_results.length != 1 ? 's' : ''} for "${_controller.text}"',
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                ),
               ),
-            ),
 
-            const SizedBox(height: 12),
+            if (_hasSearched) const SizedBox(height: 12),
 
-            // ── Results ──
+            // Results
             Expanded(
-              child: _results.isEmpty
-                  ? _NoResults(query: _query)
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : !_hasSearched
+                  ? _SearchHint()
+                  : _results.isEmpty
+                  ? _NoResults(query: _controller.text)
                   : ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: _results.length,
@@ -296,6 +333,38 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SearchHint extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.search, color: Colors.white24, size: 36),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Search destinations',
+            style: TextStyle(color: Colors.white54, fontSize: 15),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Try "Bali", "Italy", or "Mountains"',
+            style: TextStyle(color: Colors.white24, fontSize: 13),
+          ),
+        ],
       ),
     );
   }

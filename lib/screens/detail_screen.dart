@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/destination.dart';
+import '../services/saved_booking_services.dart';
 import '../theme.dart';
+import 'booking_flow_screen.dart';
 
 class DetailScreen extends StatefulWidget {
   final Destination destination;
@@ -13,9 +15,35 @@ class DetailScreen extends StatefulWidget {
 
 class _DetailScreenState extends State<DetailScreen> {
   bool _isSaved = false;
+  bool _isSaveLoading = false;
   int _selectedImageIndex = 0;
 
   Destination get dest => widget.destination;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSaved();
+  }
+
+  Future<void> _checkSaved() async {
+    final saved = await SavedService.isSaved(dest.id);
+    if (mounted) setState(() => _isSaved = saved);
+  }
+
+  Future<void> _toggleSave() async {
+    setState(() => _isSaveLoading = true);
+    try {
+      if (_isSaved) {
+        await SavedService.unsave(dest.id);
+      } else {
+        await SavedService.save(dest.id);
+      }
+      if (mounted) setState(() => _isSaved = !_isSaved);
+    } finally {
+      if (mounted) setState(() => _isSaveLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -201,7 +229,7 @@ class _DetailScreenState extends State<DetailScreen> {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: images.length,
-                            separatorBuilder: (_, _) =>
+                            separatorBuilder: (_, __) =>
                                 const SizedBox(width: 10),
                             itemBuilder: (context, i) => GestureDetector(
                               onTap: () =>
@@ -254,7 +282,7 @@ class _DetailScreenState extends State<DetailScreen> {
             child: _CircleButton(
               icon: _isSaved ? Icons.favorite : Icons.favorite_border,
               iconColor: _isSaved ? AppColors.primary : AppColors.textPrimary,
-              onTap: () => setState(() => _isSaved = !_isSaved),
+              onTap: _isSaveLoading ? () {} : _toggleSave,
             ),
           ),
 
@@ -307,7 +335,12 @@ class _DetailScreenState extends State<DetailScreen> {
                   const SizedBox(width: 24),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () {},
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BookingFormScreen(destination: dest),
+                        ),
+                      ),
                       child: Container(
                         height: 52,
                         decoration: BoxDecoration(

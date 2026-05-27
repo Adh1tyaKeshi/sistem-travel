@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/destination.dart';
+import '../services/saved_booking_services.dart';
 import '../theme.dart';
 
+final supabase = Supabase.instance.client;
+
 // ─────────────────────────────────────────
-// BOOKING MODEL (sementara, nanti dari Supabase)
+// BOOKING MODEL
 // ─────────────────────────────────────────
 enum BookingStatus { pending, confirmed, cancelled, completed }
 
@@ -27,38 +31,33 @@ class Booking {
   });
 
   int get nights => checkOut.difference(checkIn).inDays;
-}
 
-// Dummy data — nanti diganti Supabase
-final List<Booking> dummyBookings = [
-  Booking(
-    id: 'BK001',
-    destination: dummyDestinations[0],
-    checkIn: DateTime(2026, 6, 10),
-    checkOut: DateTime(2026, 6, 15),
-    guests: 2,
-    totalPrice: 6250,
-    status: BookingStatus.confirmed,
-  ),
-  Booking(
-    id: 'BK002',
-    destination: dummyDestinations[1],
-    checkIn: DateTime(2026, 7, 1),
-    checkOut: DateTime(2026, 7, 5),
-    guests: 3,
-    totalPrice: 2320,
-    status: BookingStatus.pending,
-  ),
-  Booking(
-    id: 'BK003',
-    destination: dummyDestinations[2],
-    checkIn: DateTime(2026, 3, 5),
-    checkOut: DateTime(2026, 3, 10),
-    guests: 2,
-    totalPrice: 10500,
-    status: BookingStatus.completed,
-  ),
-];
+  factory Booking.fromJson(Map<String, dynamic> json) {
+    final dest = Destination.fromJson(json['destinations']);
+    return Booking(
+      id: json['id'],
+      destination: dest,
+      checkIn: DateTime.parse(json['check_in']),
+      checkOut: DateTime.parse(json['check_out']),
+      guests: json['guests'],
+      totalPrice: (json['total_price'] as num).toDouble(),
+      status: _parseStatus(json['status']),
+    );
+  }
+
+  static BookingStatus _parseStatus(String s) {
+    switch (s) {
+      case 'confirmed':
+        return BookingStatus.confirmed;
+      case 'cancelled':
+        return BookingStatus.cancelled;
+      case 'completed':
+        return BookingStatus.completed;
+      default:
+        return BookingStatus.pending;
+    }
+  }
+}
 
 // ─────────────────────────────────────────
 // BOOKING SCREEN
@@ -73,13 +72,52 @@ class BookingScreen extends StatefulWidget {
 class _BookingScreenState extends State<BookingScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  List<Booking> _bookings = [];
+  bool _isLoading = true;
+  String? _error;
 
   final _tabs = ['All', 'Upcoming', 'Completed', 'Cancelled'];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(() => setState(() {}));
+    _loadBookings();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadBookings() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+      final data = await BookingService.getBookings();
+      final bookings = data.map((e) => Booking.fromJson(e)).toList();
+      if (mounted)
+        setState(() {
+          _bookings = bookings;
+          _isLoading = false;
+        });
+    } catch (e) {
+      if (mounted)
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+    }
+  }
 
   List<Booking> _filtered(int index) {
     switch (index) {
       case 1:
-        return dummyBookings
+        return _bookings
             .where(
               (b) =>
                   b.status == BookingStatus.confirmed ||
@@ -87,29 +125,16 @@ class _BookingScreenState extends State<BookingScreen>
             )
             .toList();
       case 2:
-        return dummyBookings
+        return _bookings
             .where((b) => b.status == BookingStatus.completed)
             .toList();
       case 3:
-        return dummyBookings
+        return _bookings
             .where((b) => b.status == BookingStatus.cancelled)
             .toList();
       default:
-        return dummyBookings;
+        return _bookings;
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
-    _tabController.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   @override
@@ -120,7 +145,7 @@ class _BookingScreenState extends State<BookingScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──
+            // Header
             const Padding(
               padding: EdgeInsets.fromLTRB(24, 20, 24, 0),
               child: Column(
@@ -143,10 +168,9 @@ class _BookingScreenState extends State<BookingScreen>
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
 
-            // ── Tab bar ──
+            // Tab bar
             SizedBox(
               height: 38,
               child: ListView.separated(
@@ -185,33 +209,46 @@ class _BookingScreenState extends State<BookingScreen>
                 },
               ),
             ),
-
             const SizedBox(height: 20),
 
-            // ── List ──
+            // Content
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: List.generate(_tabs.length, (i) {
-                  final bookings = _filtered(i);
-                  if (bookings.isEmpty) return _EmptyBookings();
-                  return ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: bookings.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
-                    itemBuilder: (context, j) => _BookingCard(
-                      booking: bookings[j],
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              BookingDetailScreen(booking: bookings[j]),
-                        ),
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
                       ),
+                    )
+                  : _error != null
+                  ? _ErrorState(onRetry: _loadBookings)
+                  : TabBarView(
+                      controller: _tabController,
+                      children: List.generate(_tabs.length, (i) {
+                        final bookings = _filtered(i);
+                        if (bookings.isEmpty) return _EmptyBookings();
+                        return RefreshIndicator(
+                          onRefresh: _loadBookings,
+                          color: AppColors.primary,
+                          backgroundColor: const Color(0xFF1A1A1A),
+                          child: ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: bookings.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 16),
+                            itemBuilder: (context, j) => _BookingCard(
+                              booking: bookings[j],
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      BookingDetailScreen(booking: bookings[j]),
+                                ),
+                              ).then((_) => _loadBookings()),
+                            ),
+                          ),
+                        );
+                      }),
                     ),
-                  );
-                }),
-              ),
             ),
           ],
         ),
@@ -226,7 +263,6 @@ class _BookingScreenState extends State<BookingScreen>
 class _BookingCard extends StatelessWidget {
   final Booking booking;
   final VoidCallback onTap;
-
   const _BookingCard({required this.booking, required this.onTap});
 
   @override
@@ -247,7 +283,6 @@ class _BookingCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Image + status badge
             Stack(
               children: [
                 ClipRRect(
@@ -264,7 +299,6 @@ class _BookingCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Gradient
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -284,13 +318,11 @@ class _BookingCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Status badge
                 Positioned(
                   top: 12,
                   right: 12,
                   child: _StatusBadge(status: booking.status),
                 ),
-                // Booking ID
                 Positioned(
                   top: 12,
                   left: 12,
@@ -304,7 +336,7 @@ class _BookingCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '#${booking.id}',
+                      '#${booking.id.substring(0, 8).toUpperCase()}',
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 11,
@@ -315,8 +347,6 @@ class _BookingCard extends StatelessWidget {
                 ),
               ],
             ),
-
-            // Details
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -382,7 +412,6 @@ class _BookingCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  // Date + guests row
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -445,23 +474,24 @@ class _DateInfo extends StatelessWidget {
   final DateTime date;
   const _DateInfo({required this.label, required this.date});
 
-  String _format(DateTime d) => '${d.day} ${_month(d.month)} ${d.year}';
-
-  String _month(int m) => [
-    '',
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ][m];
+  String _format(DateTime d) {
+    const m = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${d.day} ${m[d.month]}\n${d.year}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -492,33 +522,23 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final config = switch (status) {
-      BookingStatus.confirmed => (
-        label: 'Confirmed',
-        color: const Color(0xFF4CAF50),
-      ),
-      BookingStatus.pending => (
-        label: 'Pending',
-        color: const Color(0xFFFFB300),
-      ),
-      BookingStatus.cancelled => (
-        label: 'Cancelled',
-        color: const Color(0xFFEF5350),
-      ),
-      BookingStatus.completed => (label: 'Completed', color: Colors.white54),
+    final (label, color) = switch (status) {
+      BookingStatus.confirmed => ('Confirmed', const Color(0xFF4CAF50)),
+      BookingStatus.pending => ('Pending', const Color(0xFFFFB300)),
+      BookingStatus.cancelled => ('Cancelled', const Color(0xFFEF5350)),
+      BookingStatus.completed => ('Completed', Colors.white54),
     };
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: config.color.withOpacity(0.2),
+        color: color.withOpacity(0.2),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: config.color.withOpacity(0.5)),
+        border: Border.all(color: color.withOpacity(0.5)),
       ),
       child: Text(
-        config.label,
+        label,
         style: TextStyle(
-          color: config.color,
+          color: color,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -558,9 +578,54 @@ class _EmptyBookings extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Your upcoming trips will\nappear here',
+            'Your upcoming trips will appear here',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white38, fontSize: 13, height: 1.5),
+            style: TextStyle(color: Colors.white38, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _ErrorState({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.wifi_off, color: Colors.white38, size: 36),
+          const SizedBox(height: 14),
+          const Text(
+            'Gagal memuat data',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: onRetry,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.primary.withOpacity(0.4)),
+              ),
+              child: const Text(
+                'Coba Lagi',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -575,6 +640,25 @@ class BookingDetailScreen extends StatelessWidget {
   final Booking booking;
   const BookingDetailScreen({super.key, required this.booking});
 
+  String _formatDate(DateTime d) {
+    const m = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${d.day} ${m[d.month]} ${d.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -583,7 +667,6 @@ class BookingDetailScreen extends StatelessWidget {
         children: [
           CustomScrollView(
             slivers: [
-              // Hero image
               SliverAppBar(
                 expandedHeight: 280,
                 pinned: false,
@@ -613,14 +696,12 @@ class BookingDetailScreen extends StatelessWidget {
                   ),
                 ),
               ),
-
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title + status
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -655,10 +736,7 @@ class BookingDetailScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 28),
-
-                      // Booking info card
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -668,37 +746,27 @@ class BookingDetailScreen extends StatelessWidget {
                         child: Column(
                           children: [
                             _InfoRow(
-                              label: 'Booking ID',
-                              value: '#${booking.id}',
+                              'Booking ID',
+                              '#${booking.id.substring(0, 8).toUpperCase()}',
                             ),
                             const SizedBox(height: 14),
-                            _InfoRow(
-                              label: 'Check-in',
-                              value: _formatDate(booking.checkIn),
-                            ),
+                            _InfoRow('Check-in', _formatDate(booking.checkIn)),
                             const SizedBox(height: 14),
                             _InfoRow(
-                              label: 'Check-out',
-                              value: _formatDate(booking.checkOut),
+                              'Check-out',
+                              _formatDate(booking.checkOut),
                             ),
                             const SizedBox(height: 14),
-                            _InfoRow(
-                              label: 'Duration',
-                              value: '${booking.nights} nights',
-                            ),
+                            _InfoRow('Duration', '${booking.nights} nights'),
                             const SizedBox(height: 14),
-                            _InfoRow(
-                              label: 'Guests',
-                              value: '${booking.guests} people',
-                            ),
+                            _InfoRow('Guests', '${booking.guests} people'),
                             const Padding(
                               padding: EdgeInsets.symmetric(vertical: 14),
                               child: Divider(color: Colors.white12),
                             ),
                             _InfoRow(
-                              label: 'Total Price',
-                              value:
-                                  '\$${booking.totalPrice.toStringAsFixed(0)}',
+                              'Total Price',
+                              '\$${booking.totalPrice.toStringAsFixed(0)}',
                               valueStyle: const TextStyle(
                                 color: AppColors.primary,
                                 fontSize: 18,
@@ -708,10 +776,7 @@ class BookingDetailScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 28),
-
-                      // Cancel button (only for upcoming)
                       if (booking.status == BookingStatus.confirmed ||
                           booking.status == BookingStatus.pending)
                         GestureDetector(
@@ -737,7 +802,6 @@ class BookingDetailScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-
                       if (booking.status == BookingStatus.completed)
                         GestureDetector(
                           onTap: () {},
@@ -768,7 +832,6 @@ class BookingDetailScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -776,8 +839,6 @@ class BookingDetailScreen extends StatelessWidget {
               ),
             ],
           ),
-
-          // Back button
           Positioned(
             top: MediaQuery.of(context).padding.top + 10,
             left: 16,
@@ -803,25 +864,6 @@ class BookingDetailScreen extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime d) {
-    const months = [
-      '',
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${d.day} ${months[d.month]} ${d.year}';
-  }
-
   void _showCancelDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -833,7 +875,7 @@ class BookingDetailScreen extends StatelessWidget {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
         ),
         content: const Text(
-          'Are you sure you want to cancel this booking? This action cannot be undone.',
+          'Are you sure you want to cancel this booking?',
           style: TextStyle(color: Colors.white54, height: 1.5),
         ),
         actions: [
@@ -845,9 +887,12 @@ class BookingDetailScreen extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
+            onPressed: () async {
+              await BookingService.cancelBooking(booking.id);
+              if (context.mounted) {
+                Navigator.pop(context);
+                Navigator.pop(context);
+              }
             },
             child: const Text(
               'Cancel Booking',
@@ -864,11 +909,9 @@ class BookingDetailScreen extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
+  final String label, value;
   final TextStyle? valueStyle;
-
-  const _InfoRow({required this.label, required this.value, this.valueStyle});
+  const _InfoRow(this.label, this.value, {this.valueStyle});
 
   @override
   Widget build(BuildContext context) {
