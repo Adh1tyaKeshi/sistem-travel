@@ -1,27 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter/services.dart';
 import 'screens/home_screens.dart';
 import 'screens/saved_screen.dart';
 import 'screens/booking_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/extra_screen.dart';
 import 'theme.dart';
-import 'package:sistem_travel/screens/login_screen.dart';
 
-Future<void> main() async {
+// Helper global — akses Supabase dari mana saja
+final supabase = Supabase.instance.client;
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Load .env
+  await dotenv.load(fileName: '.env');
+
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ),
   );
-  WidgetsFlutterBinding.ensureInitialized();
 
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
   runApp(const LuminaTravelApp());
 }
 
@@ -30,15 +39,21 @@ class LuminaTravelApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Cek apakah user sudah login sebelumnya (session tersimpan otomatis)
+    final session = supabase.auth.currentSession;
+
     return MaterialApp(
       title: 'Lumina Travel',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      home: const LoginScreen(),
+      home: session != null ? const MainScaffold() : const LoginScreen(),
     );
   }
 }
 
+// ─────────────────────────────────────────
+// MAIN SCAFFOLD
+// ─────────────────────────────────────────
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
 
@@ -71,6 +86,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
+      drawer: _currentIndex == 0 ? const AppDrawer() : null,
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
