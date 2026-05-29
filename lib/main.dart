@@ -10,18 +10,26 @@ import 'theme.dart';
 import 'package:sistem_travel/screens/login_screen.dart';
 
 Future<void> main() async {
+  // 1. Harus paling pertama
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. Load .env sebelum dipakai
+  await dotenv.load(fileName: ".env");
+
+  // 3. Baru boleh akses dotenv
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ),
   );
-  WidgetsFlutterBinding.ensureInitialized();
 
+  // 4. Inisialisasi Supabase
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
+
   runApp(const LuminaTravelApp());
 }
 
