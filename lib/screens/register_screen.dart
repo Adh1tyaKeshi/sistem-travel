@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme.dart';
+import '../services/auth_services.dart';
 import 'login_screen.dart';
-import 'home_screens.dart';
 import '../main.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -38,6 +39,9 @@ class _RegisterScreenState extends State<RegisterScreen>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
+
+    // FIX: Listen to password changes agar PasswordStrengthBar rebuild
+    _passwordController.addListener(() => setState(() {}));
   }
 
   @override
@@ -51,6 +55,64 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   void _handleRegister() async {
+    // Validasi field kosong
+    if (_nameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.surface,
+          content: Row(
+            children: [
+              const Icon(
+                Icons.info_outline,
+                color: AppColors.primary,
+                size: 18,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Semua field harus diisi',
+                style: TextStyle(color: Colors.white.withOpacity(0.85)),
+              ),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
+    // Validasi password match
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFEF5350),
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Text(
+                'Password dan konfirmasi tidak cocok',
+                style: TextStyle(color: Colors.white.withOpacity(0.85)),
+              ),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
+    // Validasi terms
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -81,21 +143,122 @@ class _RegisterScreenState extends State<RegisterScreen>
 
     setState(() => _isLoading = true);
 
-    await Future.delayed(const Duration(milliseconds: 1500));
+    try {
+      final response = await AuthService.register(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        fullName: _nameController.text.trim(),
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() => _isLoading = false);
+      // Supabase by default kirim email konfirmasi.
+      // Jika email confirmation DIMATIKAN di dashboard → langsung masuk.
+      // Jika email confirmation DINYALAKAN → tampilkan pesan cek email.
+      if (response.user != null && response.session != null) {
+        // Session langsung ada → email confirmation off → masuk ke app
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const MainScaffold(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    FadeTransition(opacity: animation, child: child),
+            transitionDuration: const Duration(milliseconds: 600),
+          ),
+        );
+      } else {
+        // Session null → email confirmation ON → beritahu user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.surface,
+            content: Row(
+              children: [
+                const Icon(
+                  Icons.mark_email_read_outlined,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Registrasi berhasil! Cek email kamu untuk konfirmasi.',
+                    style: TextStyle(color: Colors.white.withOpacity(0.85)),
+                  ),
+                ),
+              ],
+            ),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        // Kembali ke login setelah user baca pesan
+        await Future.delayed(const Duration(seconds: 4));
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const LoginScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    FadeTransition(opacity: animation, child: child),
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
+        );
+      }
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_friendlyError(e.message)),
+          backgroundColor: const Color(0xFFEF5350),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Terjadi kesalahan: $e'),
+          backgroundColor: const Color(0xFFEF5350),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) => const MainScaffold(),
-        transitionsBuilder: (_, anim, _, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 600),
-      ),
-    );
+  /// Terjemahkan pesan error Supabase ke bahasa yang lebih ramah
+  String _friendlyError(String message) {
+    final msg = message.toLowerCase();
+    if (msg.contains('already registered') || msg.contains('already exists')) {
+      return 'Email ini sudah terdaftar. Silakan login.';
+    }
+    if (msg.contains('invalid email')) {
+      return 'Format email tidak valid.';
+    }
+    if (msg.contains('password') && msg.contains('6')) {
+      return 'Password minimal 6 karakter.';
+    }
+    if (msg.contains('network') || msg.contains('connection')) {
+      return 'Periksa koneksi internet kamu.';
+    }
+    return message;
   }
 
   @override
@@ -164,9 +327,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                       const Spacer(),
                       Row(
                         children: [
-                          Text(
+                          const Text(
                             'LUMINA',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
@@ -182,9 +345,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                               shape: BoxShape.circle,
                             ),
                           ),
-                          Text(
+                          const Text(
                             'TRAVEL',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
@@ -361,7 +524,8 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                               const SizedBox(height: 20),
 
-                              // Password strength hint
+                              // FIX: password di-pass langsung dari controller
+                              // karena listener sudah memanggil setState
                               _PasswordStrengthBar(
                                 password: _passwordController.text,
                               ),
@@ -468,14 +632,23 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     onTap: () => Navigator.pushReplacement(
                                       context,
                                       PageRouteBuilder(
-                                        pageBuilder: (_, _, _) =>
-                                            const LoginScreen(),
+                                        // FIX: nama parameter unik, bukan _ duplikat
+                                        pageBuilder:
+                                            (
+                                              context,
+                                              animation,
+                                              secondaryAnimation,
+                                            ) => const LoginScreen(),
                                         transitionsBuilder:
-                                            (_, anim, _, child) =>
-                                                FadeTransition(
-                                                  opacity: anim,
-                                                  child: child,
-                                                ),
+                                            (
+                                              context,
+                                              animation,
+                                              secondaryAnimation,
+                                              child,
+                                            ) => FadeTransition(
+                                              opacity: animation,
+                                              child: child,
+                                            ),
                                         transitionDuration: const Duration(
                                           milliseconds: 400,
                                         ),

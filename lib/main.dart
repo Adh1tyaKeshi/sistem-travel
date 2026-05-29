@@ -9,26 +9,27 @@ import 'screens/profile_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/extra_screen.dart';
 import 'theme.dart';
+import 'package:sistem_travel/screens/login_screen.dart';
 
-// Helper global — akses Supabase dari mana saja
-final supabase = Supabase.instance.client;
-
-void main() async {
+Future<void> main() async {
+  // 1. Harus paling pertama
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load .env
-  await dotenv.load(fileName: '.env');
+  // 2. Load .env sebelum dipakai
+  await dotenv.load(fileName: ".env");
 
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
-
+  // 3. Baru boleh akses dotenv
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ),
+  );
+
+  // 4. Inisialisasi Supabase
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
   runApp(const LuminaTravelApp());

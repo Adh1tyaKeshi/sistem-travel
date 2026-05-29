@@ -56,18 +56,28 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoading = true);
 
     try {
-      await AuthService.login(
+      // Login sekaligus ambil data profiles + customers
+      final loggedInUser = await AuthService.login(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
       if (!mounted) return;
+
+      // Opsional: kamu bisa pakai loggedInUser.fullName, role, dll
+      // di halaman berikutnya jika perlu
+      debugPrint(
+        'Login berhasil: ${loggedInUser.fullName} (${loggedInUser.role})',
+      );
+      debugPrint('Customer data: ${loggedInUser.customerData}');
+
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const MainScaffold(),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const MainScaffold(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
           transitionDuration: const Duration(milliseconds: 600),
         ),
       );
@@ -75,13 +85,45 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.message),
+          content: Text(_friendlyError(e.message)),
           backgroundColor: const Color(0xFFEF5350),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Terjadi kesalahan: $e'),
+          backgroundColor: const Color(0xFFEF5350),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
         ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  String _friendlyError(String message) {
+    final msg = message.toLowerCase();
+    if (msg.contains('invalid login') || msg.contains('invalid credentials')) {
+      return 'Email atau password salah.';
+    }
+    if (msg.contains('email not confirmed')) {
+      return 'Email belum dikonfirmasi. Cek inbox kamu.';
+    }
+    if (msg.contains('network') || msg.contains('connection')) {
+      return 'Periksa koneksi internet kamu.';
+    }
+    return message;
   }
 
   @override
@@ -329,14 +371,22 @@ class _LoginScreenState extends State<LoginScreen>
                                     onTap: () => Navigator.push(
                                       context,
                                       PageRouteBuilder(
-                                        pageBuilder: (_, __, ___) =>
-                                            const RegisterScreen(),
+                                        pageBuilder:
+                                            (
+                                              context,
+                                              animation,
+                                              secondaryAnimation,
+                                            ) => const RegisterScreen(),
                                         transitionsBuilder:
-                                            (_, anim, __, child) =>
-                                                FadeTransition(
-                                                  opacity: anim,
-                                                  child: child,
-                                                ),
+                                            (
+                                              context,
+                                              animation,
+                                              secondaryAnimation,
+                                              child,
+                                            ) => FadeTransition(
+                                              opacity: animation,
+                                              child: child,
+                                            ),
                                         transitionDuration: const Duration(
                                           milliseconds: 400,
                                         ),
