@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/destination.dart';
 import '../services/saved_booking_services.dart';
 import '../theme.dart';
+import 'booking_screen.dart';
 
 // ═════════════════════════════════════════
 // STEP 1 — BOOKING FORM SCREEN
@@ -1011,8 +1012,15 @@ class BookingSuccessScreen extends StatelessWidget {
               const Spacer(),
 
               // View bookings button
+              // View bookings button
               GestureDetector(
-                onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
+                onTap: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BookingScreen()),
+                    (route) => route.isFirst,
+                  );
+                },
                 child: Container(
                   height: 54,
                   width: double.infinity,
