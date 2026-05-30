@@ -9,7 +9,7 @@ import 'screens/profile_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/extra_screen.dart';
 import 'theme.dart';
-import 'package:sistem_travel/screens/login_screen.dart';
+// import 'package:sistem_travel/screens/login_screen.dart';
 
 Future<void> main() async {
   // 1. Harus paling pertama
