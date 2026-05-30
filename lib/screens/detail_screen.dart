@@ -6,7 +6,6 @@ import 'booking_flow_screen.dart';
 
 class DetailScreen extends StatefulWidget {
   final Destination destination;
-
   const DetailScreen({super.key, required this.destination});
 
   @override
@@ -57,6 +56,7 @@ class _DetailScreenState extends State<DetailScreen> {
         children: [
           CustomScrollView(
             slivers: [
+              // ── Hero image ──
               SliverAppBar(
                 expandedHeight: 360,
                 pinned: false,
@@ -70,22 +70,54 @@ class _DetailScreenState extends State<DetailScreen> {
                         images[_selectedImageIndex],
                         fit: BoxFit.cover,
                       ),
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: 120,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [Colors.white, Colors.transparent],
-                            ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [Colors.white, Colors.transparent],
                           ),
                         ),
                       ),
-                      // Rating + title
+                      // Type badge
+                      Positioned(
+                        top: 60,
+                        left: 20,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: dest.isPackage
+                                ? const Color(0xFF6C63FF).withOpacity(0.9)
+                                : AppColors.primary.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                dest.isPackage
+                                    ? Icons.luggage
+                                    : Icons.villa_outlined,
+                                color: Colors.white,
+                                size: 13,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                dest.isPackage ? 'Paket Wisata' : 'Akomodasi',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Rating & name
                       Positioned(
                         left: 20,
                         bottom: 70,
@@ -126,12 +158,22 @@ class _DetailScreenState extends State<DetailScreen> {
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            Text(
-                              dest.country,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 14,
-                              ),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on,
+                                  color: Colors.white70,
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '${dest.city != null ? '${dest.city}, ' : ''}${dest.country}',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -173,48 +215,89 @@ class _DetailScreenState extends State<DetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Amenities
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          _AmenityChip(
-                            icon: Icons.king_bed_outlined,
-                            label: '${dest.beds} Beds',
-                          ),
-                          _AmenityChip(
-                            icon: Icons.bathtub_outlined,
-                            label: '${dest.baths} Baths',
-                          ),
-                          if (dest.hasPool)
-                            const _AmenityChip(
-                              icon: Icons.pool_outlined,
-                              label: 'Pool',
-                            ),
-                          if (dest.hasWifi)
-                            const _AmenityChip(icon: Icons.wifi, label: 'WiFi'),
-                        ],
-                      ),
+                      // ── Fasilitas / Info chips ──
+                      dest.isPackage
+                          ? _PackageInfoChips(dest: dest)
+                          : _AccommodationChips(dest: dest),
+
                       const SizedBox(height: 24),
+
+                      // ── Highlights ──
+                      if (dest.highlights.isNotEmpty) ...[
+                        const Text(
+                          'Yang Sudah Termasuk',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: dest.highlights
+                              .map(
+                                (h) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: AppColors.primary.withOpacity(0.2),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.check_circle_outline,
+                                        color: AppColors.primary,
+                                        size: 14,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        h,
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // ── Deskripsi ──
                       const Text(
-                        'About the Villa',
+                        'Tentang Destinasi',
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        dest.description,
+                        dest.description ?? '',
                         style: const TextStyle(
                           fontSize: 14,
                           color: AppColors.textSecondary,
                           height: 1.7,
                         ),
                       ),
-                      const SizedBox(height: 28),
+
+                      // ── Gallery ──
                       if (images.length > 1) ...[
+                        const SizedBox(height: 24),
                         const Text(
                           'Gallery',
                           style: TextStyle(
@@ -257,6 +340,7 @@ class _DetailScreenState extends State<DetailScreen> {
                           ),
                         ),
                       ],
+
                       const SizedBox(height: 110),
                     ],
                   ),
@@ -265,28 +349,73 @@ class _DetailScreenState extends State<DetailScreen> {
             ],
           ),
 
-          // Back button
+          // ── Back button ──
           Positioned(
             top: MediaQuery.of(context).padding.top + 10,
             left: 16,
-            child: _CircleButton(
-              icon: Icons.arrow_back_ios_new,
+            child: GestureDetector(
               onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.arrow_back_ios_new,
+                  size: 18,
+                  color: AppColors.textPrimary,
+                ),
+              ),
             ),
           ),
 
-          // Save button
+          // ── Save button ──
           Positioned(
             top: MediaQuery.of(context).padding.top + 10,
             right: 16,
-            child: _CircleButton(
-              icon: _isSaved ? Icons.favorite : Icons.favorite_border,
-              iconColor: _isSaved ? AppColors.primary : AppColors.textPrimary,
-              onTap: _isSaveLoading ? () {} : _toggleSave,
+            child: GestureDetector(
+              onTap: _isSaveLoading ? null : _toggleSave,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+                child: _isSaveLoading
+                    ? const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(
+                        _isSaved ? Icons.favorite : Icons.favorite_border,
+                        size: 18,
+                        color: _isSaved
+                            ? AppColors.primary
+                            : AppColors.textPrimary,
+                      ),
+              ),
             ),
           ),
 
-          // Bottom booking bar
+          // ── Bottom booking bar ──
           Positioned(
             bottom: 0,
             left: 0,
@@ -314,9 +443,9 @@ class _DetailScreenState extends State<DetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'Total per night',
-                        style: TextStyle(
+                      Text(
+                        dest.isPackage ? 'Mulai dari' : 'Per malam',
+                        style: const TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 12,
                         ),
@@ -330,6 +459,14 @@ class _DetailScreenState extends State<DetailScreen> {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                      if (dest.isPackage && dest.durationDays != null)
+                        Text(
+                          '/ ${dest.durationDays} hari',
+                          style: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 11,
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(width: 24),
@@ -352,10 +489,10 @@ class _DetailScreenState extends State<DetailScreen> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: AppTheme.primaryShadow,
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
-                            'Book Now',
-                            style: TextStyle(
+                            dest.isPackage ? 'Pesan Paket' : 'Book Now',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -376,10 +513,64 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 }
 
-class _AmenityChip extends StatelessWidget {
+// ── Chips untuk Accommodation ──
+class _AccommodationChips extends StatelessWidget {
+  final Destination dest;
+  const _AccommodationChips({required this.dest});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        if (dest.beds > 0)
+          _Chip(icon: Icons.king_bed_outlined, label: '${dest.beds} Beds'),
+        if (dest.baths > 0)
+          _Chip(icon: Icons.bathtub_outlined, label: '${dest.baths} Baths'),
+        if (dest.hasPool) const _Chip(icon: Icons.pool_outlined, label: 'Pool'),
+        if (dest.hasWifi) const _Chip(icon: Icons.wifi, label: 'WiFi'),
+      ],
+    );
+  }
+}
+
+// ── Chips untuk Package ──
+class _PackageInfoChips extends StatelessWidget {
+  final Destination dest;
+  const _PackageInfoChips({required this.dest});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        if (dest.durationDays != null)
+          _Chip(
+            icon: Icons.schedule_outlined,
+            label: '${dest.durationDays} Hari',
+          ),
+        if (dest.minGroupSize != null && dest.minGroupSize! > 0)
+          _Chip(
+            icon: Icons.group_outlined,
+            label: 'Min ${dest.minGroupSize} orang',
+          ),
+        if (dest.includesHotel)
+          const _Chip(icon: Icons.hotel_outlined, label: 'Hotel'),
+        if (dest.includesTransport)
+          const _Chip(icon: Icons.directions_bus_outlined, label: 'Transport'),
+        if (dest.includesMeals)
+          const _Chip(icon: Icons.restaurant_outlined, label: 'Meals'),
+      ],
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
   final IconData icon;
   final String label;
-  const _AmenityChip({required this.icon, required this.label});
+  const _Chip({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -403,36 +594,6 @@ class _AmenityChip extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CircleButton extends StatelessWidget {
-  final IconData icon;
-  final Color? iconColor;
-  final VoidCallback onTap;
-  const _CircleButton({
-    required this.icon,
-    required this.onTap,
-    this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8),
-          ],
-        ),
-        child: Icon(icon, size: 18, color: iconColor ?? AppColors.textPrimary),
       ),
     );
   }
