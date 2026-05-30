@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/destination.dart';
 import '../services/saved_booking_services.dart';
+import '../services/review_services.dart';
 import '../theme.dart';
+import '../widgets/review_section.dart';
 import 'booking_flow_screen.dart';
+import 'write_review_screen.dart';
 
 class DetailScreen extends StatefulWidget {
   final Destination destination;
@@ -341,6 +344,20 @@ class _DetailScreenState extends State<DetailScreen> {
                         ),
                       ],
 
+                      const SizedBox(height: 28),
+
+                      // ── Review Section ──
+                      ReviewSection(
+                        destinationId: dest.id,
+                        rating: dest.rating,
+                        reviewCount: dest.reviewCount,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // ── Tombol Write Review ──
+                      _WriteReviewButton(destination: dest),
+
                       const SizedBox(height: 110),
                     ],
                   ),
@@ -594,6 +611,106 @@ class _Chip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Write Review Button ──
+class _WriteReviewButton extends StatefulWidget {
+  final Destination destination;
+  const _WriteReviewButton({required this.destination});
+
+  @override
+  State<_WriteReviewButton> createState() => _WriteReviewButtonState();
+}
+
+class _WriteReviewButtonState extends State<_WriteReviewButton> {
+  bool _canReview = false;
+  bool _hasReviewed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkReviewEligibility();
+  }
+
+  Future<void> _checkReviewEligibility() async {
+    final hasBooked = await ReviewService.hasBooked(widget.destination.id);
+    final hasReviewed = await ReviewService.hasReviewed(widget.destination.id);
+    if (mounted)
+      setState(() {
+        _canReview = hasBooked && !hasReviewed;
+        _hasReviewed = hasReviewed;
+      });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_hasReviewed) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF4CAF50).withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              color: Color(0xFF4CAF50),
+              size: 18,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Kamu sudah memberi ulasan',
+              style: TextStyle(
+                color: Color(0xFF4CAF50),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!_canReview) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => WriteReviewScreen(destination: widget.destination),
+        ),
+      ).then((_) => _checkReviewEligibility()),
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.primary.withOpacity(0.5)),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.rate_review_outlined,
+              color: AppColors.primary,
+              size: 18,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Tulis Ulasan',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

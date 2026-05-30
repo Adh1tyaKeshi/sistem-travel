@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/destination.dart';
 import '../services/saved_booking_services.dart';
 import '../theme.dart';
+import 'write_review_screen.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -804,7 +805,15 @@ class BookingDetailScreen extends StatelessWidget {
                         ),
                       if (booking.status == BookingStatus.completed)
                         GestureDetector(
-                          onTap: () {},
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => WriteReviewScreen(
+                                destination: booking.destination,
+                                bookingId: booking.id,
+                              ),
+                            ),
+                          ),
                           child: Container(
                             height: 52,
                             width: double.infinity,
