@@ -8,13 +8,31 @@ class ReviewService {
 
   // Ambil semua review untuk satu destinasi
   static Future<List<Review>> getReviews(String destinationId) async {
-    final data = await supabase
+    // 1. Ambil reviews dulu
+    final reviewData = await supabase
         .from('reviews')
-        .select('*, profiles(full_name, avatar_url)')
+        .select()
         .eq('destination_id', destinationId)
         .order('created_at', ascending: false);
 
-    return (data as List).map((e) => Review.fromJson(e)).toList();
+    if ((reviewData as List).isEmpty) return [];
+
+    // 2. Ambil user ids dari reviews
+    final userIds = reviewData.map((e) => e['user_id']).toList();
+
+    // 3. Ambil profiles berdasarkan user ids
+    final profileData = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .inFilter('id', userIds);
+
+    // 4. Gabungkan data
+    final profileMap = {for (var p in (profileData as List)) p['id']: p};
+
+    return reviewData.map((e) {
+      final profile = profileMap[e['user_id']];
+      return Review.fromJson({...e, 'profiles': profile});
+    }).toList();
   }
 
   // Cek apakah user sudah pernah review destinasi ini

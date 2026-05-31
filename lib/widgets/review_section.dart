@@ -33,12 +33,14 @@ class _ReviewSectionState extends State<ReviewSection> {
   Future<void> _loadReviews() async {
     try {
       final data = await ReviewService.getReviews(widget.destinationId);
+      print('DEBUG reviews loaded: ${data.length}');
       if (mounted)
         setState(() {
           _reviews = data;
           _isLoading = false;
         });
     } catch (e) {
+      print('DEBUG reviews error: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
