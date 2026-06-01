@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/destination.dart';
 import '../services/destination_services.dart';
+import '../widgets/filter_bar.dart';
 import '../theme.dart';
 import 'detail_screen.dart';
+import 'package:intl/intl.dart';
 
 class SeeAllScreen extends StatefulWidget {
   const SeeAllScreen({super.key});
@@ -15,7 +17,15 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
   List<Destination> _destinations = [];
   bool _isLoading = true;
   String _sortBy = 'Popular';
-  final _sorts = ['Popular', 'Price ↑', 'Price ↓', 'Rating'];
+  DestinationFilter _filter = const DestinationFilter();
+
+  final rupiahFormat = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
+
+  final _sorts = ['Popular', 'Harga ↑', 'Harga ↓', 'Rating'];
 
   @override
   void initState() {
@@ -26,7 +36,7 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
   Future<void> _loadAll() async {
     try {
       setState(() => _isLoading = true);
-      final data = await DestinationService.getAll();
+      final data = await DestinationService.getAll(filter: _filter);
       if (mounted)
         setState(() {
           _destinations = data;
@@ -39,18 +49,28 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
 
   List<Destination> get _sorted {
     final list = List<Destination>.from(_destinations);
+
+    // Apply category filter client-side
+    final filtered = _filter.category != null
+        ? list.where((d) {
+            // Match category name to category_id
+            // Sementara filter nama karena category join belum ada
+            return true;
+          }).toList()
+        : list;
+
     switch (_sortBy) {
-      case 'Price ↑':
-        list.sort((a, b) => a.pricePerNight.compareTo(b.pricePerNight));
+      case 'Harga ↑':
+        filtered.sort((a, b) => a.pricePerNight.compareTo(b.pricePerNight));
         break;
-      case 'Price ↓':
-        list.sort((a, b) => b.pricePerNight.compareTo(a.pricePerNight));
+      case 'Harga ↓':
+        filtered.sort((a, b) => b.pricePerNight.compareTo(a.pricePerNight));
         break;
       case 'Rating':
-        list.sort((a, b) => b.rating.compareTo(a.rating));
+        filtered.sort((a, b) => b.rating.compareTo(a.rating));
         break;
     }
-    return list;
+    return filtered;
   }
 
   @override
@@ -60,7 +80,7 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
+            // ── Header ──
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Row(
@@ -84,7 +104,7 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
                   const SizedBox(width: 14),
                   const Expanded(
                     child: Text(
-                      'All Destinations',
+                      'Semua Destinasi',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -93,15 +113,27 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
                     ),
                   ),
                   Text(
-                    '${_destinations.length} places',
+                    '${_sorted.length} tempat',
                     style: const TextStyle(color: Colors.white38, fontSize: 13),
                   ),
                 ],
               ),
             ),
+
             const SizedBox(height: 16),
 
-            // Sort chips
+            // ── Filter bar ──
+            FilterBar(
+              filter: _filter,
+              onFilterChanged: (newFilter) {
+                setState(() => _filter = newFilter);
+                _loadAll();
+              },
+            ),
+
+            const SizedBox(height: 12),
+
+            // ── Sort chips ──
             SizedBox(
               height: 36,
               child: ListView.separated(
@@ -140,14 +172,63 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
                 },
               ),
             ),
+
             const SizedBox(height: 16),
 
-            // Grid
+            // ── Grid ──
             Expanded(
               child: _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
                         color: AppColors.primary,
+                      ),
+                    )
+                  : _sorted.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.search_off,
+                            color: Colors.white24,
+                            size: 40,
+                          ),
+                          const SizedBox(height: 14),
+                          const Text(
+                            'Tidak ada destinasi\nyang sesuai filter',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          GestureDetector(
+                            onTap: () {
+                              setState(
+                                () => _filter = const DestinationFilter(),
+                              );
+                              _loadAll();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'Reset Filter',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     )
                   : RefreshIndicator(
@@ -206,6 +287,38 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
                                         ),
                                       ),
                                     ),
+                                    // Type badge
+                                    Positioned(
+                                      top: 10,
+                                      left: 10,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: dest.isPackage
+                                              ? const Color(
+                                                  0xFF6C63FF,
+                                                ).withOpacity(0.85)
+                                              : AppColors.primary.withOpacity(
+                                                  0.85,
+                                                ),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          dest.isPackage ? 'Paket' : 'Hotel',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // Rating
                                     Positioned(
                                       top: 10,
                                       right: 10,
@@ -268,7 +381,7 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
                                           ),
                                           const SizedBox(height: 5),
                                           Text(
-                                            '\$${dest.pricePerNight.toStringAsFixed(0)}/night',
+                                            '${rupiahFormat.format(dest.pricePerNight)}${dest.isPackage ? '/paket' : '/malam'}',
                                             style: const TextStyle(
                                               color: AppColors.primary,
                                               fontSize: 12,

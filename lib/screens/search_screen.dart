@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
 import '../models/destination.dart';
 import '../services/destination_services.dart';
+import '../widgets/filter_bar.dart';
 import '../theme.dart';
 import 'detail_screen.dart';
+import 'package:intl/intl.dart';
+
+String formatRupiah(double price) {
+  return NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  ).format(price);
+}
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -16,9 +26,7 @@ class _SearchScreenState extends State<SearchScreen> {
   List<Destination> _results = [];
   bool _isLoading = false;
   bool _hasSearched = false;
-  String _selectedCategory = 'All';
-
-  final _categories = ['All', 'Beaches', 'Mountains', 'Cities', 'Forests'];
+  DestinationFilter _filter = const DestinationFilter();
 
   @override
   void dispose() {
@@ -27,29 +35,19 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _search(String query) async {
-    if (query.isEmpty) {
-      setState(() {
-        _results = [];
-        _hasSearched = false;
-      });
-      return;
-    }
     setState(() {
       _isLoading = true;
       _hasSearched = true;
     });
     try {
-      final data = await DestinationService.search(query);
+      final data = await DestinationService.search(query, filter: _filter);
       if (mounted)
         setState(() {
           _results = data;
           _isLoading = false;
         });
     } catch (e) {
-      if (mounted)
-        setState(() {
-          _isLoading = false;
-        });
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -61,7 +59,7 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header + search bar
+            // ── Search bar ──
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Row(
@@ -134,68 +132,34 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Category filter
-            SizedBox(
-              height: 36,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: _categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, i) {
-                  final selected = _selectedCategory == _categories[i];
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() => _selectedCategory = _categories[i]);
-                      _search(_controller.text);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? AppColors.primary
-                            : Colors.white.withOpacity(0.07),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Text(
-                        _categories[i],
-                        style: TextStyle(
-                          color: selected ? Colors.white : Colors.white54,
-                          fontSize: 13,
-                          fontWeight: selected
-                              ? FontWeight.w700
-                              : FontWeight.w400,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+            // ── Filter bar ──
+            FilterBar(
+              filter: _filter,
+              onFilterChanged: (newFilter) {
+                setState(() => _filter = newFilter);
+                _search(_controller.text);
+              },
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Result count
+            // ── Result count ──
             if (_hasSearched)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   _isLoading
-                      ? 'Searching...'
-                      : '${_results.length} result${_results.length != 1 ? 's' : ''} for "${_controller.text}"',
+                      ? 'Mencari...'
+                      : '${_results.length} hasil${_controller.text.isNotEmpty ? ' untuk "${_controller.text}"' : ''}',
                   style: const TextStyle(color: Colors.white54, fontSize: 13),
                 ),
               ),
 
             if (_hasSearched) const SizedBox(height: 12),
 
-            // Results
+            // ── Results ──
             Expanded(
               child: _isLoading
                   ? const Center(
@@ -213,123 +177,158 @@ class _SearchScreenState extends State<SearchScreen> {
                       separatorBuilder: (_, __) => const SizedBox(height: 14),
                       itemBuilder: (context, i) {
                         final dest = _results[i];
-                        return GestureDetector(
+                        return _SearchResultCard(
+                          destination: dest,
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => DetailScreen(destination: dest),
                             ),
                           ),
-                          child: Container(
-                            height: 110,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1A1A1A),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Row(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(18),
-                                    bottomLeft: Radius.circular(18),
-                                  ),
-                                  child: SizedBox(
-                                    width: 100,
-                                    height: 110,
-                                    child: Image.network(
-                                      dest.imageUrl,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 12,
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              dest.name,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            const SizedBox(height: 3),
-                                            Row(
-                                              children: [
-                                                const Icon(
-                                                  Icons.location_on,
-                                                  color: Colors.white38,
-                                                  size: 12,
-                                                ),
-                                                const SizedBox(width: 3),
-                                                Text(
-                                                  dest.country,
-                                                  style: const TextStyle(
-                                                    color: Colors.white38,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              '\$${dest.pricePerNight.toStringAsFixed(0)}/night',
-                                              style: const TextStyle(
-                                                color: AppColors.primary,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                            Row(
-                                              children: [
-                                                const Icon(
-                                                  Icons.star,
-                                                  color: Color(0xFFFFD700),
-                                                  size: 13,
-                                                ),
-                                                const SizedBox(width: 3),
-                                                Text(
-                                                  '${dest.rating}',
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         );
                       },
                     ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchResultCard extends StatelessWidget {
+  final Destination destination;
+  final VoidCallback onTap;
+  const _SearchResultCard({required this.destination, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 110,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                bottomLeft: Radius.circular(18),
+              ),
+              child: SizedBox(
+                width: 100,
+                height: 110,
+                child: Image.network(destination.imageUrl, fit: BoxFit.cover),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                destination.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: destination.isPackage
+                                    ? const Color(0xFF6C63FF).withOpacity(0.2)
+                                    : AppColors.primary.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                destination.isPackage ? 'Paket' : 'Hotel',
+                                style: TextStyle(
+                                  color: destination.isPackage
+                                      ? const Color(0xFF6C63FF)
+                                      : AppColors.primary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on,
+                              color: Colors.white38,
+                              size: 12,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              destination.country,
+                              style: const TextStyle(
+                                color: Colors.white38,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${formatRupiah(destination.pricePerNight)}${destination.isPackage ? '/paket' : '/malam'}',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              color: Color(0xFFFFD700),
+                              size: 13,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${destination.rating}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -356,12 +355,12 @@ class _SearchHint extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Search destinations',
+            'Cari destinasi impianmu',
             style: TextStyle(color: Colors.white54, fontSize: 15),
           ),
           const SizedBox(height: 8),
           const Text(
-            'Try "Bali", "Italy", or "Mountains"',
+            'Coba "Bali", "Raja Ampat", atau "Mountains"',
             style: TextStyle(color: Colors.white24, fontSize: 13),
           ),
         ],
@@ -395,16 +394,19 @@ class _NoResults extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            'No results for "$query"',
+            query.isNotEmpty
+                ? 'Tidak ada hasil untuk "$query"'
+                : 'Tidak ada destinasi yang sesuai filter',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           const Text(
-            'Try a different keyword',
+            'Coba ubah filter atau kata kunci',
             style: TextStyle(color: Colors.white38, fontSize: 13),
           ),
         ],

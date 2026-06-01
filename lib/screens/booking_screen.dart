@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 import '../models/destination.dart';
 import '../services/saved_booking_services.dart';
 import '../theme.dart';
@@ -268,6 +269,11 @@ class _BookingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rupiahFormat = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -394,7 +400,7 @@ class _BookingCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '\$${booking.totalPrice.toStringAsFixed(0)}',
+                            rupiahFormat.format(booking.totalPrice),
                             style: const TextStyle(
                               color: AppColors.primary,
                               fontSize: 18,
@@ -662,6 +668,11 @@ class BookingDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rupiahFormat = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       body: Stack(
@@ -767,7 +778,7 @@ class BookingDetailScreen extends StatelessWidget {
                             ),
                             _InfoRow(
                               'Total Price',
-                              '\$${booking.totalPrice.toStringAsFixed(0)}',
+                              rupiahFormat.format(booking.totalPrice),
                               valueStyle: const TextStyle(
                                 color: AppColors.primary,
                                 fontSize: 18,

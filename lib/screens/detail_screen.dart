@@ -6,6 +6,7 @@ import '../theme.dart';
 import '../widgets/review_section.dart';
 import 'booking_flow_screen.dart';
 import 'write_review_screen.dart';
+import 'package:intl/intl.dart';
 
 class DetailScreen extends StatefulWidget {
   final Destination destination;
@@ -16,6 +17,11 @@ class DetailScreen extends StatefulWidget {
 }
 
 class _DetailScreenState extends State<DetailScreen> {
+  final rupiahFormat = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
   bool _isSaved = false;
   bool _isSaveLoading = false;
   int _selectedImageIndex = 0;
@@ -469,7 +475,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '\$${dest.pricePerNight.toStringAsFixed(0)}',
+                        rupiahFormat.format(dest.pricePerNight),
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 24,
