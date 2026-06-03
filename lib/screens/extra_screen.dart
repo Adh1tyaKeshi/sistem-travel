@@ -1,14 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme.dart';
+import '../services/auth_services.dart';
+import 'login_screen.dart';
+import 'profile_screen.dart';
 
 // ─────────────────────────────────────────
-// SETTINGS DRAWER (garis tiga / hamburger)
+// APP DRAWER
 // ─────────────────────────────────────────
-class AppDrawer extends StatelessWidget {
-  const AppDrawer({super.key});
+class AppDrawer extends StatefulWidget {
+  final ValueChanged<int> onTabChange;
+  const AppDrawer({super.key, required this.onTabChange});
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  Map<String, dynamic>? _profile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final profile = await AuthService.getProfile();
+    if (mounted) setState(() => _profile = profile);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final user = Supabase.instance.client.auth.currentUser;
+    final name =
+        _profile?['full_name'] ?? user?.email?.split('@').first ?? 'Explorer';
+    final avatarUrl = _profile?['avatar_url'];
+
     return Drawer(
       backgroundColor: const Color(0xFF111111),
       child: SafeArea(
@@ -25,29 +53,40 @@ class AppDrawer extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.primary, width: 2),
-                      image: const DecorationImage(
-                        image: NetworkImage(
-                          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
-                        ),
-                        fit: BoxFit.cover,
-                      ),
+                    ),
+                    child: ClipOval(
+                      child: avatarUrl != null
+                          ? Image.network(avatarUrl, fit: BoxFit.cover)
+                          : Container(
+                              color: AppColors.primary.withOpacity(0.2),
+                              child: Center(
+                                child: Text(
+                                  name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 14),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Sarah Johnson',
-                        style: TextStyle(
+                        name,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      SizedBox(height: 3),
-                      Text(
-                        'Premium Member',
+                      const SizedBox(height: 3),
+                      const Text(
+                        'Member',
                         style: TextStyle(
                           color: AppColors.primary,
                           fontSize: 12,
@@ -67,25 +106,22 @@ class AppDrawer extends StatelessWidget {
               label: 'Explore',
               onTap: () => Navigator.pop(context),
             ),
-            _DrawerItem(
-              icon: Icons.map_outlined,
-              label: 'Travel Plans',
-              onTap: () {},
-            ),
+
             _DrawerItem(
               icon: Icons.favorite_border,
               label: 'Saved',
-              onTap: () {},
+              onTap: () {
+                Navigator.pop(context);
+                widget.onTabChange(1);
+              },
             ),
             _DrawerItem(
               icon: Icons.calendar_today_outlined,
               label: 'Bookings',
-              onTap: () {},
-            ),
-            _DrawerItem(
-              icon: Icons.star_border,
-              label: 'Reviews',
-              onTap: () {},
+              onTap: () {
+                Navigator.pop(context);
+                widget.onTabChange(2);
+              },
             ),
 
             const SizedBox(height: 8),
@@ -95,17 +131,49 @@ class AppDrawer extends StatelessWidget {
             _DrawerItem(
               icon: Icons.settings_outlined,
               label: 'Settings',
-              onTap: () {},
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
             ),
             _DrawerItem(
               icon: Icons.help_outline,
               label: 'Help Center',
-              onTap: () {},
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HelpCenterScreen()),
+                );
+              },
+            ),
+
+            const SizedBox(height: 8),
+            const Divider(color: Colors.white12),
+            const SizedBox(height: 8),
+
+            _DrawerItem(
+              icon: Icons.logout,
+              label: 'Log Out',
+              color: const Color(0xFFEF5350),
+              onTap: () async {
+                Navigator.pop(context);
+                await AuthService.logout();
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
+              },
             ),
 
             const Spacer(),
 
-            // Version info
             const Padding(
               padding: EdgeInsets.all(24),
               child: Text(
@@ -124,20 +192,23 @@ class _DrawerItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color? color;
 
   const _DrawerItem({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final itemColor = color ?? Colors.white54;
     return ListTile(
-      leading: Icon(icon, color: Colors.white54, size: 20),
+      leading: Icon(icon, color: itemColor, size: 20),
       title: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontSize: 14),
+        style: TextStyle(color: color ?? Colors.white, fontSize: 14),
       ),
       onTap: onTap,
       horizontalTitleGap: 8,
@@ -189,6 +260,13 @@ class _AddTripScreenState extends State<AddTripScreen> {
           _endDate = picked;
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _notesController.dispose();
+    super.dispose();
   }
 
   @override
@@ -381,6 +459,9 @@ class _AddTripScreenState extends State<AddTripScreen> {
   }
 }
 
+// ─────────────────────────────────────────
+// SHARED WIDGETS
+// ─────────────────────────────────────────
 class _FieldLabel extends StatelessWidget {
   final String label;
   const _FieldLabel(this.label);
