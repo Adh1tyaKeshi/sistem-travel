@@ -36,7 +36,9 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Future<void> _checkSaved() async {
     final saved = await SavedService.isSaved(dest.id);
-    if (mounted) setState(() => _isSaved = saved);
+    if (mounted) {
+      setState(() => _isSaved = saved);
+    }
   }
 
   Future<void> _toggleSave() async {
@@ -47,9 +49,13 @@ class _DetailScreenState extends State<DetailScreen> {
       } else {
         await SavedService.save(dest.id);
       }
-      if (mounted) setState(() => _isSaved = !_isSaved);
+      if (mounted) {
+        setState(() => _isSaved = !_isSaved);
+      }
     } finally {
-      if (mounted) setState(() => _isSaveLoading = false);
+      if (mounted) {
+        setState(() => _isSaveLoading = false);
+      }
     }
   }
 
@@ -296,7 +302,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        dest.description ?? '',
+                        dest.description,
                         style: const TextStyle(
                           fontSize: 14,
                           color: AppColors.textSecondary,
@@ -644,11 +650,12 @@ class _WriteReviewButtonState extends State<_WriteReviewButton> {
   Future<void> _checkReviewEligibility() async {
     final hasBooked = await ReviewService.hasBooked(widget.destination.id);
     final hasReviewed = await ReviewService.hasReviewed(widget.destination.id);
-    if (mounted)
+    if (mounted) {
       setState(() {
         _canReview = hasBooked && !hasReviewed;
         _hasReviewed = hasReviewed;
       });
+    }
   }
 
   @override
