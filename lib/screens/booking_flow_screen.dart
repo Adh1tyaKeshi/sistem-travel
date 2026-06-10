@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/destination.dart';
 import '../services/saved_booking_services.dart';
+import '../services/payment_services.dart';
 import '../theme.dart';
-import 'booking_screen.dart';
+import 'package:intl/intl.dart';
+
+final rupiahFormat = NumberFormat.currency(
+  locale: 'id_ID',
+  symbol: 'Rp ',
+  decimalDigits: 0,
+);
 
 // ═════════════════════════════════════════
 // STEP 1 — BOOKING FORM SCREEN
@@ -28,7 +37,6 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
       : 0;
 
   double get _totalPrice => _nights * dest.pricePerNight;
-
   bool get _canProceed => _checkIn != null && _checkOut != null && _nights > 0;
 
   Future<void> _pickDate(bool isCheckIn) async {
@@ -61,10 +69,8 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
       setState(() {
         if (isCheckIn) {
           _checkIn = picked;
-          // Reset checkout jika sebelum check-in
-          if (_checkOut != null && !_checkOut!.isAfter(picked)) {
+          if (_checkOut != null && !_checkOut!.isAfter(picked))
             _checkOut = null;
-          }
         } else {
           _checkOut = picked;
         }
@@ -86,7 +92,6 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
         children: [
           CustomScrollView(
             slivers: [
-              // Hero image
               SliverAppBar(
                 expandedHeight: 220,
                 pinned: false,
@@ -113,14 +118,12 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                   ),
                 ),
               ),
-
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Destination info
                       Text(
                         dest.name,
                         style: const TextStyle(
@@ -162,12 +165,9 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 28),
-                      _SectionTitle('Select Dates'),
+                      _SectionTitle('Pilih Tanggal'),
                       const SizedBox(height: 12),
-
-                      // Date pickers
                       Row(
                         children: [
                           Expanded(
@@ -187,8 +187,6 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                           ),
                         ],
                       ),
-
-                      // Duration badge
                       if (_nights > 0) ...[
                         const SizedBox(height: 10),
                         Center(
@@ -215,12 +213,9 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                           ),
                         ),
                       ],
-
                       const SizedBox(height: 24),
-                      _SectionTitle('Guests'),
+                      _SectionTitle('Tamu'),
                       const SizedBox(height: 12),
-
-                      // Guest counter
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
@@ -237,7 +232,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Number of guests',
+                                  'Jumlah tamu',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
@@ -282,11 +277,9 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 24),
-                      _SectionTitle('Special Requests (optional)'),
+                      _SectionTitle('Permintaan Khusus (opsional)'),
                       const SizedBox(height: 12),
-
                       Container(
                         decoration: BoxDecoration(
                           color: const Color(0xFF1A1A1A),
@@ -300,7 +293,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                             fontSize: 14,
                           ),
                           decoration: const InputDecoration(
-                            hintText: 'Any special requests or notes...',
+                            hintText: 'Ada permintaan atau catatan khusus?',
                             hintStyle: TextStyle(
                               color: Colors.white24,
                               fontSize: 13,
@@ -310,7 +303,6 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 120),
                     ],
                   ),
@@ -318,8 +310,6 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
               ),
             ],
           ),
-
-          // Back button
           Positioned(
             top: MediaQuery.of(context).padding.top + 10,
             left: 16,
@@ -340,8 +330,6 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
               ),
             ),
           ),
-
-          // Bottom bar — price + next
           Positioned(
             bottom: 0,
             left: 0,
@@ -371,8 +359,8 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                     children: [
                       Text(
                         _nights > 0
-                            ? '\$${_totalPrice.toStringAsFixed(0)}'
-                            : '\$${dest.pricePerNight.toStringAsFixed(0)}',
+                            ? rupiahFormat.format(_totalPrice)
+                            : rupiahFormat.format(dest.pricePerNight),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -427,7 +415,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                         ),
                         child: Center(
                           child: Text(
-                            'Continue',
+                            'Lanjutkan',
                             style: TextStyle(
                               color: _canProceed
                                   ? Colors.white
@@ -477,6 +465,46 @@ class BookingConfirmScreen extends StatefulWidget {
 
 class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
   bool _isLoading = false;
+  String _selectedMethod = 'gopay';
+
+  static const _methods = [
+    ('gopay', 'GoPay', 'Scan QR untuk bayar', Color(0xFF00AE11), 'G'),
+    ('shopeepay', 'ShopeePay', 'Scan QR untuk bayar', Color(0xFFEE4D2D), 'S'),
+    ('dana', 'DANA', 'Bayar dari DANA', Color(0xFF108EE9), 'D'),
+    ('ovo', 'OVO', 'Bayar dari OVO', Color(0xFF4C3494), 'O'),
+    (
+      'bca_va',
+      'BCA Virtual Account',
+      'Transfer ke nomor VA',
+      Color(0xFF003064),
+      'BCA',
+    ),
+    (
+      'bni_va',
+      'BNI Virtual Account',
+      'Transfer ke nomor VA',
+      Color(0xFFF15A24),
+      'BNI',
+    ),
+    (
+      'bri_va',
+      'BRI Virtual Account',
+      'Transfer ke nomor VA',
+      Color(0xFF1A1464),
+      'BRI',
+    ),
+    (
+      'mandiri_va',
+      'Mandiri Virtual Account',
+      'Transfer ke nomor VA',
+      Color(0xFF003087),
+      'MDR',
+    ),
+  ];
+
+  bool get _isVA => _selectedMethod.endsWith('_va');
+  bool get _isEWallet =>
+      ['gopay', 'shopeepay', 'dana', 'ovo'].contains(_selectedMethod);
 
   int get _nights => widget.checkOut.difference(widget.checkIn).inDays;
 
@@ -499,11 +527,33 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
     return '${d.day} ${months[d.month]} ${d.year}';
   }
 
+  // Generate nomor VA simulasi
+  String _generateVANumber(String method) {
+    final random = DateTime.now().millisecondsSinceEpoch.toString();
+    switch (method) {
+      case 'bca_va':
+        return '8277${random.substring(random.length - 8)}';
+      case 'bni_va':
+        return '9889${random.substring(random.length - 8)}';
+      case 'bri_va':
+        return '1234${random.substring(random.length - 8)}';
+      case 'mandiri_va':
+        return '8908${random.substring(random.length - 8)}';
+      default:
+        return random.substring(random.length - 12);
+    }
+  }
+
+  // Generate kode QR simulasi untuk e-wallet
+  String _generateQRCode(String method) {
+    return 'QR-${method.toUpperCase()}-${DateTime.now().millisecondsSinceEpoch}';
+  }
+
   Future<void> _confirmBooking() async {
     setState(() => _isLoading = true);
 
     try {
-      await BookingService.createBooking(
+      final bookingId = await BookingService.createBookingWithId(
         destinationId: widget.destination.id,
         checkIn: widget.checkIn,
         checkOut: widget.checkOut,
@@ -512,31 +562,78 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
         notes: widget.notes.isNotEmpty ? widget.notes : null,
       );
 
-      if (!mounted) return;
+      final user = Supabase.instance.client.auth.currentUser;
+      final userEmail = user?.email ?? '';
+      final userName = user?.userMetadata?['full_name'] ?? 'Explorer';
 
-      // Navigate ke success screen
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => BookingSuccessScreen(
-            destination: widget.destination,
-            checkIn: widget.checkIn,
-            checkOut: widget.checkOut,
-            totalPrice: widget.totalPrice,
-          ),
-        ),
-        (route) => route.isFirst, // kembali ke root (MainScaffold)
+      final result = await PaymentService.createTransaction(
+        bookingId: bookingId,
+        amount: widget.totalPrice,
+        customerName: userName,
+        customerEmail: userEmail,
+        itemName: widget.destination.name,
+        paymentMethod: _selectedMethod,
       );
+
+      await PaymentService.handlePaymentResult(
+        bookingId: bookingId,
+        orderId: result['order_id']!,
+        paymentStatus: 'settlement',
+        paymentMethod: _selectedMethod,
+      );
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      // Tampilkan payment screen sesuai metode
+      if (_isVA) {
+        final vaNumber = _generateVANumber(_selectedMethod);
+        final methodName = _methods
+            .firstWhere((m) => m.$1 == _selectedMethod)
+            .$2;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VAPaymentScreen(
+              vaNumber: vaNumber,
+              bankName: methodName,
+              totalPrice: widget.totalPrice,
+              bookingId: bookingId,
+              destination: widget.destination,
+              checkIn: widget.checkIn,
+              checkOut: widget.checkOut,
+            ),
+          ),
+        );
+      } else if (_isEWallet) {
+        final qrCode = _generateQRCode(_selectedMethod);
+        final methodName = _methods
+            .firstWhere((m) => m.$1 == _selectedMethod)
+            .$2;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EWalletPaymentScreen(
+              qrCode: qrCode,
+              walletName: methodName,
+              totalPrice: widget.totalPrice,
+              bookingId: bookingId,
+              destination: widget.destination,
+              checkIn: widget.checkIn,
+              checkOut: widget.checkOut,
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Booking gagal: ${e.toString()}'),
           backgroundColor: const Color(0xFFEF5350),
         ),
       );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -547,7 +644,6 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
@@ -570,7 +666,7 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                   ),
                   const SizedBox(width: 14),
                   const Text(
-                    'Confirm Booking',
+                    'Konfirmasi Pemesanan',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,
@@ -580,15 +676,13 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 24),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   children: [
-                    // Destination summary card
+                    // Destination card
                     Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFF1A1A1A),
@@ -675,7 +769,6 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 20),
 
                     // Booking details
@@ -689,7 +782,7 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Booking Details',
+                            'Detail Pemesanan',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -705,12 +798,12 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                           ),
                           const SizedBox(height: 12),
                           _ConfirmRow(
-                            'Duration',
+                            'Durasi',
                             '$_nights night${_nights > 1 ? 's' : ''}',
                           ),
                           const SizedBox(height: 12),
                           _ConfirmRow(
-                            'Guests',
+                            'Tamu',
                             '${widget.guests} person${widget.guests > 1 ? 's' : ''}',
                           ),
                           if (widget.notes.isNotEmpty) ...[
@@ -725,14 +818,16 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text(
-                                'Price per night',
+                                'Harga per malam',
                                 style: TextStyle(
                                   color: Colors.white38,
                                   fontSize: 13,
                                 ),
                               ),
                               Text(
-                                '\$${widget.destination.pricePerNight.toStringAsFixed(0)}',
+                                rupiahFormat.format(
+                                  widget.destination.pricePerNight,
+                                ),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 13,
@@ -753,7 +848,7 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                                 ),
                               ),
                               Text(
-                                '\$${widget.totalPrice.toStringAsFixed(0)}',
+                                rupiahFormat.format(widget.totalPrice),
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontSize: 20,
@@ -765,7 +860,6 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 20),
 
                     // Info box
@@ -778,15 +872,15 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                           color: AppColors.primary.withOpacity(0.25),
                         ),
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.info_outline,
                             color: AppColors.primary,
                             size: 18,
                           ),
-                          const SizedBox(width: 12),
-                          const Expanded(
+                          SizedBox(width: 12),
+                          Expanded(
                             child: Text(
                               'Konfirmasi booking akan dikirim ke email kamu. Status booking bisa dicek di tab Bookings.',
                               style: TextStyle(
@@ -799,7 +893,128 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 20),
 
+                    // Metode Pembayaran
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A1A),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Metode Pembayaran',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ..._methods.map(
+                            (m) => GestureDetector(
+                              onTap: () =>
+                                  setState(() => _selectedMethod = m.$1),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _selectedMethod == m.$1
+                                      ? AppColors.primary.withOpacity(0.1)
+                                      : Colors.white.withOpacity(0.04),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _selectedMethod == m.$1
+                                        ? AppColors.primary.withOpacity(0.6)
+                                        : Colors.white.withOpacity(0.08),
+                                    width: _selectedMethod == m.$1 ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: m.$4,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          m.$5,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            m.$2,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          Text(
+                                            m.$3,
+                                            style: const TextStyle(
+                                              color: Colors.white38,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: _selectedMethod == m.$1
+                                            ? AppColors.primary
+                                            : Colors.transparent,
+                                        border: Border.all(
+                                          color: _selectedMethod == m.$1
+                                              ? AppColors.primary
+                                              : Colors.white30,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: _selectedMethod == m.$1
+                                          ? const Icon(
+                                              Icons.check,
+                                              color: Colors.white,
+                                              size: 13,
+                                            )
+                                          : null,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 100),
                   ],
                 ),
@@ -848,7 +1063,7 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                             ),
                           )
                         : const Text(
-                            'Confirm Booking',
+                            'Konfirmasi Pemesanan',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -858,6 +1073,633 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                           ),
                   ),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════
+// STEP 2B — VA PAYMENT SCREEN
+// ═════════════════════════════════════════
+class VAPaymentScreen extends StatefulWidget {
+  final String vaNumber;
+  final String bankName;
+  final double totalPrice;
+  final String bookingId;
+  final Destination destination;
+  final DateTime checkIn;
+  final DateTime checkOut;
+
+  const VAPaymentScreen({
+    super.key,
+    required this.vaNumber,
+    required this.bankName,
+    required this.totalPrice,
+    required this.bookingId,
+    required this.destination,
+    required this.checkIn,
+    required this.checkOut,
+  });
+
+  @override
+  State<VAPaymentScreen> createState() => _VAPaymentScreenState();
+}
+
+class _VAPaymentScreenState extends State<VAPaymentScreen> {
+  bool _copied = false;
+
+  void _copyVA() {
+    Clipboard.setData(ClipboardData(text: widget.vaNumber));
+    setState(() => _copied = true);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.07),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    'Bayar via ${widget.bankName}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
+
+                    // Info card
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A1A),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        children: [
+                          // Bank icon
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.account_balance,
+                              color: AppColors.primary,
+                              size: 30,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            widget.bankName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Nomor Virtual Account',
+                            style: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // VA Number
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: AppColors.primary.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  widget.vaNumber,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: _copyVA,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _copied
+                                          ? const Color(0xFF4CAF50)
+                                          : AppColors.primary,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      _copied ? 'Tersalin!' : 'Salin',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Total
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Total Pembayaran',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                rupiahFormat.format(widget.totalPrice),
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Cara bayar
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A1A),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Cara Pembayaran',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _StepItem(
+                            '1',
+                            'Buka aplikasi ${widget.bankName} atau ATM',
+                          ),
+                          _StepItem(
+                            '2',
+                            'Pilih menu Transfer / Virtual Account',
+                          ),
+                          _StepItem('3', 'Masukkan nomor VA di atas'),
+                          _StepItem(
+                            '4',
+                            'Pastikan nominal sesuai: ${rupiahFormat.format(widget.totalPrice)}',
+                          ),
+                          _StepItem(
+                            '5',
+                            'Konfirmasi dan selesaikan pembayaran',
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Warning
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFB300).withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(0xFFFFB300).withOpacity(0.3),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            color: Color(0xFFFFB300),
+                            size: 18,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Selesaikan pembayaran dalam 24 jam. Booking akan otomatis dibatalkan jika tidak dibayar.',
+                              style: TextStyle(
+                                color: Color(0xFFFFB300),
+                                fontSize: 12,
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+
+            // Sudah Bayar button
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF161616),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                16,
+                24,
+                MediaQuery.of(context).padding.bottom + 16,
+              ),
+              child: Column(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BookingSuccessScreen(
+                          destination: widget.destination,
+                          checkIn: widget.checkIn,
+                          checkOut: widget.checkOut,
+                          totalPrice: widget.totalPrice,
+                        ),
+                      ),
+                      (route) => route.isFirst,
+                    ),
+                    child: Container(
+                      height: 54,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primaryLight, AppColors.primary],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppTheme.primaryShadow,
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Saya Sudah Bayar',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: () =>
+                        Navigator.of(context).popUntil((r) => r.isFirst),
+                    child: const Text(
+                      'Bayar Nanti',
+                      style: TextStyle(color: Colors.white38, fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════
+// STEP 2C — E-WALLET PAYMENT SCREEN
+// ═════════════════════════════════════════
+class EWalletPaymentScreen extends StatelessWidget {
+  final String qrCode;
+  final String walletName;
+  final double totalPrice;
+  final String bookingId;
+  final Destination destination;
+  final DateTime checkIn;
+  final DateTime checkOut;
+
+  const EWalletPaymentScreen({
+    super.key,
+    required this.qrCode,
+    required this.walletName,
+    required this.totalPrice,
+    required this.bookingId,
+    required this.destination,
+    required this.checkIn,
+    required this.checkOut,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.07),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    'Bayar via $walletName',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A1A),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            walletName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Scan QR Code untuk membayar',
+                            style: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // QR Code simulasi
+                          Container(
+                            width: 200,
+                            height: 200,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.qr_code_2,
+                                    size: 120,
+                                    color: Colors.black,
+                                  ),
+                                  Text(
+                                    walletName,
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Total Pembayaran',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                rupiahFormat.format(totalPrice),
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFB300).withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(0xFFFFB300).withOpacity(0.3),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            color: Color(0xFFFFB300),
+                            size: 18,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'QR Code berlaku selama 15 menit. Segera scan sebelum kadaluarsa.',
+                              style: TextStyle(
+                                color: Color(0xFFFFB300),
+                                fontSize: 12,
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF161616),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                16,
+                24,
+                MediaQuery.of(context).padding.bottom + 16,
+              ),
+              child: Column(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BookingSuccessScreen(
+                          destination: destination,
+                          checkIn: checkIn,
+                          checkOut: checkOut,
+                          totalPrice: totalPrice,
+                        ),
+                      ),
+                      (route) => route.isFirst,
+                    ),
+                    child: Container(
+                      height: 54,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primaryLight, AppColors.primary],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppTheme.primaryShadow,
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Saya Sudah Bayar',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: () =>
+                        Navigator.of(context).popUntil((r) => r.isFirst),
+                    child: const Text(
+                      'Bayar Nanti',
+                      style: TextStyle(color: Colors.white38, fontSize: 14),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -911,11 +1753,10 @@ class BookingSuccessScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
 
-              // Success icon animation
+              // Success icon
               Container(
                 width: 100,
                 height: 100,
@@ -930,13 +1771,15 @@ class BookingSuccessScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
+              // FIX: tambah textAlign center dan kurangi fontSize
               const Text(
-                'Booking Confirmed!',
+                'Pemesanan Dikonfirmasi!',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 26,
+                  fontSize: 22,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -951,7 +1794,7 @@ class BookingSuccessScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
 
               // Booking summary card
               Container(
@@ -976,6 +1819,7 @@ class BookingSuccessScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     Text(
                       destination.name,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 17,
@@ -1000,7 +1844,7 @@ class BookingSuccessScreen extends StatelessWidget {
                         Container(width: 1, height: 30, color: Colors.white12),
                         _SummaryItem(
                           'Total',
-                          '\$${totalPrice.toStringAsFixed(0)}',
+                          rupiahFormat.format(totalPrice),
                           valueColor: AppColors.primary,
                         ),
                       ],
@@ -1011,16 +1855,8 @@ class BookingSuccessScreen extends StatelessWidget {
 
               const Spacer(),
 
-              // View bookings button
-              // View bookings button
               GestureDetector(
-                onTap: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const BookingScreen()),
-                    (route) => route.isFirst,
-                  );
-                },
+                onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
                 child: Container(
                   height: 54,
                   width: double.infinity,
@@ -1035,7 +1871,7 @@ class BookingSuccessScreen extends StatelessWidget {
                   ),
                   child: const Center(
                     child: Text(
-                      'View My Bookings',
+                      'Lihat Pemesananku',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -1048,7 +1884,6 @@ class BookingSuccessScreen extends StatelessWidget {
 
               const SizedBox(height: 14),
 
-              // Back to explore
               GestureDetector(
                 onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
                 child: Container(
@@ -1060,7 +1895,7 @@ class BookingSuccessScreen extends StatelessWidget {
                   ),
                   child: const Center(
                     child: Text(
-                      'Back to Explore',
+                      'Kembali ke Jelajahi',
                       style: TextStyle(color: Colors.white54, fontSize: 15),
                     ),
                   ),
@@ -1077,6 +1912,53 @@ class BookingSuccessScreen extends StatelessWidget {
 // ─────────────────────────────────────────
 // SHARED WIDGETS
 // ─────────────────────────────────────────
+class _StepItem extends StatelessWidget {
+  final String number;
+  final String text;
+  const _StepItem(this.number, this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionTitle extends StatelessWidget {
   final String title;
   const _SectionTitle(this.title);
