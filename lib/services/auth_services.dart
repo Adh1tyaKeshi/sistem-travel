@@ -23,16 +23,12 @@ class LoggedInUser {
 
 class AuthService {
   // ── Register ──────────────────────────────────────────────────────────────
-  /// 1. signUp ke Supabase Auth
-  /// 2. Insert manual ke profiles + customers/pegawai sebagai fallback
-  ///    (jaga-jaga jika trigger tidak membaca metadata dengan benar)
   static Future<AuthResponse> register({
     required String email,
     required String password,
     required String fullName,
     String role = 'customer',
   }) async {
-    // Step 1: Daftar ke Supabase Auth
     final response = await supabase.auth.signUp(
       email: email,
       password: password,
@@ -42,7 +38,6 @@ class AuthService {
     final userId = response.user?.id;
     if (userId == null) return response;
 
-    // Step 2: Upsert ke profiles (tidak duplikat meski trigger sudah jalan)
     await supabase.from('profiles').upsert({
       'id': userId,
       'full_name': fullName,
@@ -52,7 +47,6 @@ class AuthService {
       'updated_at': DateTime.now().toIso8601String(),
     }, onConflict: 'id');
 
-    // Step 3: Upsert ke customers jika role = customer
     if (role == 'customer') {
       await supabase.from('customers').upsert({
         'id': userId,
@@ -60,7 +54,6 @@ class AuthService {
       }, onConflict: 'id');
     }
 
-    // Step 4: Upsert ke pegawai jika role = pegawai
     if (role == 'pegawai') {
       await supabase.from('pegawai').upsert({
         'id': userId,
@@ -72,12 +65,10 @@ class AuthService {
   }
 
   // ── Login ─────────────────────────────────────────────────────────────────
-  /// Login dan sekaligus ambil data profiles + customers/pegawai.
   static Future<LoggedInUser> login({
     required String email,
     required String password,
   }) async {
-    // 1. Login via Supabase Auth
     final response = await supabase.auth.signInWithPassword(
       email: email,
       password: password,
@@ -88,7 +79,6 @@ class AuthService {
       throw const AuthException('Login gagal, coba lagi.');
     }
 
-    // 2. Ambil data dari table profiles
     final profile = await supabase
         .from('profiles')
         .select()
@@ -97,7 +87,6 @@ class AuthService {
 
     final role = profile['role'] as String? ?? 'customer';
 
-    // 3. Ambil data tambahan sesuai role
     Map<String, dynamic>? extraData;
     if (role == 'customer') {
       try {
@@ -174,14 +163,24 @@ class AuthService {
   }) async {
     final userId = currentUser?.id;
     if (userId == null) return;
-    await supabase
-        .from('customers')
-        .update({
-          if (phone != null) 'phone': phone,
-          if (address != null) 'address': address,
-          if (dateOfBirth != null)
-            'date_of_birth': dateOfBirth.toIso8601String(),
-        })
-        .eq('id', userId);
+    await supabase.from('customers').upsert({
+      'id': userId,
+      if (phone != null) 'phone': phone,
+      if (address != null) 'address': address,
+      if (dateOfBirth != null) 'date_of_birth': dateOfBirth.toIso8601String(),
+    }, onConflict: 'id');
+  }
+
+  // ── Forgot Password ───────────────────────────────────────────────────────
+  static Future<void> forgotPassword(String email) async {
+    await supabase.auth.resetPasswordForEmail(
+      email,
+      redirectTo: 'io.supabase.luminatravel://reset-callback/',
+    );
+  }
+
+  // ── Reset Password ────────────────────────────────────────────────────────
+  static Future<void> resetPassword(String newPassword) async {
+    await supabase.auth.updateUser(UserAttributes(password: newPassword));
   }
 }
