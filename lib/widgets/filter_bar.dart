@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../services/destination_services.dart';
 import 'package:intl/intl.dart';
 
 // ─────────────────────────────────────────
@@ -10,7 +11,7 @@ class DestinationFilter {
   final double? maxPrice;
   final double? minRating;
   final String? category;
-  final String? type; // 'accommodation', 'package', null = semua
+  final String? type;
 
   const DestinationFilter({
     this.minPrice,
@@ -133,7 +134,7 @@ class FilterBar extends StatelessWidget {
                     Container(
                       width: 18,
                       height: 18,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
@@ -294,6 +295,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   late double _minRating;
   late String? _category;
   late String? _type;
+  List<Map<String, dynamic>> _categories = [];
+  bool _isCategoryLoading = true;
+
+  static const double _maxPriceLimit = 10000000;
+
   String formatRupiah(double price) {
     return NumberFormat.currency(
       locale: 'id_ID',
@@ -301,10 +307,6 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
       decimalDigits: 0,
     ).format(price);
   }
-
-  static const double _maxPriceLimit = 10000000;
-
-  final _categories = ['Beaches', 'Mountains', 'Cities', 'Forests', 'Islands'];
 
   @override
   void initState() {
@@ -314,6 +316,20 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     _minRating = widget.filter.minRating ?? 0;
     _category = widget.filter.category;
     _type = widget.filter.type;
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final data = await DestinationService.getCategories();
+      if (mounted)
+        setState(() {
+          _categories = data;
+          _isCategoryLoading = false;
+        });
+    } catch (e) {
+      if (mounted) setState(() => _isCategoryLoading = false);
+    }
   }
 
   @override
@@ -413,21 +429,33 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           // ── Kategori ──
           _SectionLabel('Kategori'),
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _categories
-                .map(
-                  (cat) => _TypeChip(
-                    label: cat,
-                    isSelected: _category == cat,
-                    onTap: () => setState(
-                      () => _category = _category == cat ? null : cat,
+          _isCategoryLoading
+              ? const SizedBox(
+                  height: 36,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                      strokeWidth: 2,
                     ),
                   ),
                 )
-                .toList(),
-          ),
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _categories
+                      .map(
+                        (cat) => _TypeChip(
+                          label: cat['name'],
+                          isSelected: _category == cat['name'],
+                          onTap: () => setState(
+                            () => _category = _category == cat['name']
+                                ? null
+                                : cat['name'],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
 
           const SizedBox(height: 24),
 
