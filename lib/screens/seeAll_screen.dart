@@ -61,10 +61,10 @@ class _SeeAllScreenState extends State<SeeAllScreen> {
 
     switch (_sortBy) {
       case 'Harga ↑':
-        filtered.sort((a, b) => a.pricePerNight.compareTo(b.pricePerNight));
+        filtered.sort((a, b) => b.pricePerNight.compareTo(a.pricePerNight));
         break;
       case 'Harga ↓':
-        filtered.sort((a, b) => b.pricePerNight.compareTo(a.pricePerNight));
+        filtered.sort((a, b) => a.pricePerNight.compareTo(b.pricePerNight));
         break;
       case 'Rating':
         filtered.sort((a, b) => b.rating.compareTo(a.rating));
