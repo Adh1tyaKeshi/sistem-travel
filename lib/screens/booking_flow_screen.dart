@@ -69,8 +69,9 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
       setState(() {
         if (isCheckIn) {
           _checkIn = picked;
-          if (_checkOut != null && !_checkOut!.isAfter(picked))
+          if (_checkOut != null && !_checkOut!.isAfter(picked)) {
             _checkOut = null;
+          }
         } else {
           _checkOut = picked;
         }
@@ -468,10 +469,16 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
   String _selectedMethod = 'gopay';
 
   static const _methods = [
-    ('gopay', 'GoPay', 'Scan QR untuk bayar', Color(0xFF00AE11), 'G'),
-    ('shopeepay', 'ShopeePay', 'Scan QR untuk bayar', Color(0xFFEE4D2D), 'S'),
-    ('dana', 'DANA', 'Bayar dari DANA', Color(0xFF108EE9), 'D'),
-    ('ovo', 'OVO', 'Bayar dari OVO', Color(0xFF4C3494), 'O'),
+    ('gopay', 'GoPay', 'Bayar via aplikasi GoPay', Color(0xFF00AE11), 'G'),
+    (
+      'shopeepay',
+      'ShopeePay',
+      'Bayar via aplikasi ShopeePay',
+      Color(0xFFEE4D2D),
+      'S',
+    ),
+    ('dana', 'DANA', 'Bayar via aplikasi DANA', Color(0xFF108EE9), 'D'),
+    ('ovo', 'OVO', 'Bayar via aplikasi OVO', Color(0xFF4C3494), 'O'),
     (
       'bca_va',
       'BCA Virtual Account',
@@ -527,7 +534,6 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
     return '${d.day} ${months[d.month]} ${d.year}';
   }
 
-  // Generate nomor VA simulasi
   String _generateVANumber(String method) {
     final random = DateTime.now().millisecondsSinceEpoch.toString();
     switch (method) {
@@ -542,11 +548,6 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
       default:
         return random.substring(random.length - 12);
     }
-  }
-
-  // Generate kode QR simulasi untuk e-wallet
-  String _generateQRCode(String method) {
-    return 'QR-${method.toUpperCase()}-${DateTime.now().millisecondsSinceEpoch}';
   }
 
   Future<void> _confirmBooking() async {
@@ -585,12 +586,10 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      // Tampilkan payment screen sesuai metode
+      final methodName = _methods.firstWhere((m) => m.$1 == _selectedMethod).$2;
+
       if (_isVA) {
         final vaNumber = _generateVANumber(_selectedMethod);
-        final methodName = _methods
-            .firstWhere((m) => m.$1 == _selectedMethod)
-            .$2;
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -606,15 +605,10 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
           ),
         );
       } else if (_isEWallet) {
-        final qrCode = _generateQRCode(_selectedMethod);
-        final methodName = _methods
-            .firstWhere((m) => m.$1 == _selectedMethod)
-            .$2;
         await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => EWalletPaymentScreen(
-              qrCode: qrCode,
               walletName: methodName,
               totalPrice: widget.totalPrice,
               bookingId: bookingId,
@@ -1127,7 +1121,6 @@ class _VAPaymentScreenState extends State<VAPaymentScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
@@ -1149,26 +1142,27 @@ class _VAPaymentScreenState extends State<VAPaymentScreen> {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  Text(
-                    'Bayar via ${widget.bankName}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
+                  Expanded(
+                    child: Text(
+                      'Bayar via ${widget.bankName}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
                     const SizedBox(height: 16),
-
-                    // Info card
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
@@ -1177,7 +1171,6 @@ class _VAPaymentScreenState extends State<VAPaymentScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Bank icon
                           Container(
                             width: 64,
                             height: 64,
@@ -1209,8 +1202,6 @@ class _VAPaymentScreenState extends State<VAPaymentScreen> {
                             ),
                           ),
                           const SizedBox(height: 20),
-
-                          // VA Number
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
@@ -1261,10 +1252,7 @@ class _VAPaymentScreenState extends State<VAPaymentScreen> {
                               ],
                             ),
                           ),
-
                           const SizedBox(height: 20),
-
-                          // Total
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -1288,10 +1276,7 @@ class _VAPaymentScreenState extends State<VAPaymentScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Cara bayar
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -1330,10 +1315,7 @@ class _VAPaymentScreenState extends State<VAPaymentScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Warning
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1364,14 +1346,11 @@ class _VAPaymentScreenState extends State<VAPaymentScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 32),
                   ],
                 ),
               ),
             ),
-
-            // Sudah Bayar button
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF161616),
@@ -1451,7 +1430,6 @@ class _VAPaymentScreenState extends State<VAPaymentScreen> {
 // STEP 2C — E-WALLET PAYMENT SCREEN
 // ═════════════════════════════════════════
 class EWalletPaymentScreen extends StatelessWidget {
-  final String qrCode;
   final String walletName;
   final double totalPrice;
   final String bookingId;
@@ -1461,7 +1439,6 @@ class EWalletPaymentScreen extends StatelessWidget {
 
   const EWalletPaymentScreen({
     super.key,
-    required this.qrCode,
     required this.walletName,
     required this.totalPrice,
     required this.bookingId,
@@ -1470,8 +1447,58 @@ class EWalletPaymentScreen extends StatelessWidget {
     required this.checkOut,
   });
 
+  List<String> _getSteps() {
+    final nominal = rupiahFormat.format(totalPrice);
+    final kodeBooking = '#${bookingId.substring(0, 8).toUpperCase()}';
+    switch (walletName.toLowerCase()) {
+      case 'gopay':
+        return [
+          'Buka aplikasi Gojek di HP kamu',
+          'Tap ikon GoPay di halaman utama',
+          'Pilih "Bayar" lalu masukkan kode booking: $kodeBooking',
+          'Pastikan nominal sesuai: $nominal',
+          'Konfirmasi pembayaran dengan PIN GoPay kamu',
+        ];
+      case 'shopeepay':
+        return [
+          'Buka aplikasi Shopee di HP kamu',
+          'Tap ikon ShopeePay di halaman utama',
+          'Pilih "Bayar" atau "Transfer"',
+          'Masukkan kode booking: $kodeBooking',
+          'Pastikan nominal sesuai: $nominal',
+          'Konfirmasi dengan PIN ShopeePay kamu',
+        ];
+      case 'dana':
+        return [
+          'Buka aplikasi DANA di HP kamu',
+          'Tap "Kirim" atau "Bayar"',
+          'Masukkan kode booking: $kodeBooking',
+          'Pastikan nominal sesuai: $nominal',
+          'Konfirmasi pembayaran dengan PIN DANA kamu',
+        ];
+      case 'ovo':
+        return [
+          'Buka aplikasi OVO di HP kamu',
+          'Tap "Transfer" atau "Bayar"',
+          'Masukkan kode booking: $kodeBooking',
+          'Pastikan nominal sesuai: $nominal',
+          'Konfirmasi pembayaran dengan PIN OVO kamu',
+        ];
+      default:
+        return [
+          'Buka aplikasi $walletName di HP kamu',
+          'Pilih menu pembayaran',
+          'Masukkan kode booking: $kodeBooking',
+          'Pastikan nominal sesuai: $nominal',
+          'Konfirmasi pembayaran',
+        ];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final steps = _getSteps();
+
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       body: SafeArea(
@@ -1509,13 +1536,14 @@ class EWalletPaymentScreen extends StatelessWidget {
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
                     const SizedBox(height: 16),
+
+                    // Info card
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
@@ -1524,6 +1552,20 @@ class EWalletPaymentScreen extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.account_balance_wallet,
+                              color: AppColors.primary,
+                              size: 30,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                           Text(
                             walletName,
                             style: const TextStyle(
@@ -1534,45 +1576,59 @@ class EWalletPaymentScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'Scan QR Code untuk membayar',
+                            'Selesaikan pembayaran via e-wallet',
                             style: TextStyle(
                               color: Colors.white38,
                               fontSize: 13,
                             ),
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 20),
 
-                          // QR Code simulasi
+                          // Kode booking
                           Container(
-                            width: 200,
-                            height: 200,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
                             ),
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.qr_code_2,
-                                    size: 120,
-                                    color: Colors.black,
-                                  ),
-                                  Text(
-                                    walletName,
-                                    style: const TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: AppColors.primary.withOpacity(0.3),
                               ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Kode Booking',
+                                      style: TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '#${bookingId.substring(0, 8).toUpperCase()}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
 
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 16),
+
+                          // Total
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -1599,6 +1655,35 @@ class EWalletPaymentScreen extends StatelessWidget {
 
                     const SizedBox(height: 20),
 
+                    // Cara bayar
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A1A),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Cara Pembayaran',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ...steps.asMap().entries.map(
+                            (e) => _StepItem('${e.key + 1}', e.value),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Warning
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1618,7 +1703,7 @@ class EWalletPaymentScreen extends StatelessWidget {
                           SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'QR Code berlaku selama 15 menit. Segera scan sebelum kadaluarsa.',
+                              'Selesaikan pembayaran dalam 1 jam. Booking akan otomatis dibatalkan jika tidak dibayar.',
                               style: TextStyle(
                                 color: Color(0xFFFFB300),
                                 fontSize: 12,
@@ -1629,11 +1714,13 @@ class EWalletPaymentScreen extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
             ),
 
+            // Bottom buttons
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF161616),
@@ -1755,8 +1842,6 @@ class BookingSuccessScreen extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(),
-
-              // Success icon
               Container(
                 width: 100,
                 height: 100,
@@ -1770,10 +1855,7 @@ class BookingSuccessScreen extends StatelessWidget {
                   size: 52,
                 ),
               ),
-
               const SizedBox(height: 24),
-
-              // FIX: tambah textAlign center dan kurangi fontSize
               const Text(
                 'Pemesanan Dikonfirmasi!',
                 textAlign: TextAlign.center,
@@ -1793,10 +1875,7 @@ class BookingSuccessScreen extends StatelessWidget {
                   height: 1.6,
                 ),
               ),
-
               const SizedBox(height: 28),
-
-              // Booking summary card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -1852,9 +1931,7 @@ class BookingSuccessScreen extends StatelessWidget {
                   ],
                 ),
               ),
-
               const Spacer(),
-
               GestureDetector(
                 onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
                 child: Container(
@@ -1881,9 +1958,7 @@ class BookingSuccessScreen extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 14),
-
               GestureDetector(
                 onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
                 child: Container(
