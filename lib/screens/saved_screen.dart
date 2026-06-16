@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/destination.dart';
+import '../services/saved_booking_services.dart';
 import '../theme.dart';
 import 'detail_screen.dart';
-// ignore: unused_import
+import 'package:intl/intl.dart';
+
+final rupiahFormat = NumberFormat.currency(
+  locale: 'id_ID',
+  symbol: 'Rp ',
+  decimalDigits: 0,
+);
 
 class SavedScreen extends StatefulWidget {
   const SavedScreen({super.key});
@@ -12,14 +19,42 @@ class SavedScreen extends StatefulWidget {
 }
 
 class _SavedScreenState extends State<SavedScreen> {
-  // Nanti diganti dengan data dari Supabase
-  // List.from() membuat copy baru — tidak memodifikasi dummyDestinations aslinya
-  late final List<Destination> _savedDestinations = List.from(
-    dummyDestinations,
-  );
+  List<Destination> _savedDestinations = [];
+  bool _isLoading = true;
 
-  void _removeFromSaved(String id) {
-    setState(() => _savedDestinations.removeWhere((d) => d.id == id));
+  @override
+  void initState() {
+    super.initState();
+    _loadSaved();
+  }
+
+  Future<void> _loadSaved() async {
+    try {
+      setState(() => _isLoading = true);
+      final data = await SavedService.getSaved();
+      if (mounted) setState(() => _savedDestinations = data);
+    } catch (e) {
+      if (mounted) setState(() => _savedDestinations = []);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _removeFromSaved(String id) async {
+    try {
+      await SavedService.unsave(id);
+      if (mounted)
+        setState(() => _savedDestinations.removeWhere((d) => d.id == id));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal menghapus dari saved'),
+            backgroundColor: Color(0xFFEF5350),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -84,25 +119,36 @@ class _SavedScreenState extends State<SavedScreen> {
 
             // ── List ──
             Expanded(
-              child: _savedDestinations.isEmpty
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : _savedDestinations.isEmpty
                   ? _EmptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: _savedDestinations.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 16),
-                      itemBuilder: (context, i) {
-                        final dest = _savedDestinations[i];
-                        return _SavedCard(
-                          destination: dest,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => DetailScreen(destination: dest),
-                            ),
-                          ),
-                          onRemove: () => _removeFromSaved(dest.id),
-                        );
-                      },
+                  : RefreshIndicator(
+                      onRefresh: _loadSaved,
+                      color: AppColors.primary,
+                      backgroundColor: const Color(0xFF1A1A1A),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: _savedDestinations.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 16),
+                        itemBuilder: (context, i) {
+                          final dest = _savedDestinations[i];
+                          return _SavedCard(
+                            destination: dest,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => DetailScreen(destination: dest),
+                              ),
+                            ).then((_) => _loadSaved()),
+                            onRemove: () => _removeFromSaved(dest.id),
+                          );
+                        },
+                      ),
                     ),
             ),
           ],
@@ -209,7 +255,7 @@ class _SavedCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '\$${destination.pricePerNight.toStringAsFixed(0)}',
+                              rupiahFormat.format(destination.pricePerNight),
                               style: const TextStyle(
                                 color: AppColors.primary,
                                 fontSize: 16,
