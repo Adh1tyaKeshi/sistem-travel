@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import '../models/destination.dart';
 import '../theme.dart';
+import 'package:intl/intl.dart';
 
 class DestinationCard extends StatelessWidget {
   final Destination destination;
   final VoidCallback onTap;
 
-  const DestinationCard({
-    super.key,
-    required this.destination,
-    required this.onTap,
-  });
+  final rupiahFormat = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
+
+  DestinationCard({super.key, required this.destination, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +93,7 @@ class DestinationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '\$${destination.pricePerNight.toStringAsFixed(0)}/night',
+                      '${rupiahFormat.format(destination.pricePerNight)}/malam',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 12,
