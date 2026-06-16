@@ -23,8 +23,7 @@ class PaymentService {
     required String itemName,
     String? paymentMethod,
   }) async {
-    const double usdToIdr = 16000;
-    final idrAmount = (amount * usdToIdr).toInt();
+    final idrAmount = amount.toInt();
 
     final orderId =
         'LT-${bookingId.substring(0, 8).toUpperCase()}-${DateTime.now().millisecondsSinceEpoch}';
