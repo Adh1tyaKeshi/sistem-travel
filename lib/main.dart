@@ -87,7 +87,11 @@ class _MainScaffoldState extends State<MainScaffold> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
-      drawer: _currentIndex == 0 ? const AppDrawer() : null,
+      drawer: _currentIndex == 0
+          ? AppDrawer(
+              onTabChange: (index) => setState(() => _currentIndex = index),
+            )
+          : null,
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
