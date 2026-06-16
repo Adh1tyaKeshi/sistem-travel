@@ -13,13 +13,27 @@ class SavedService {
   static Future<List<Destination>> getSaved() async {
     if (_userId == null) return [];
 
-    final data = await supabase
+    // 1. Ambil destination_id dari saved_destinations
+    final savedData = await supabase
         .from('saved_destinations')
-        .select('destination_id, destinations(*, destination_images(*))')
+        .select('destination_id')
         .eq('user_id', _userId!);
 
-    return (data as List)
-        .map((e) => Destination.fromJson(e['destinations']))
+    if ((savedData as List).isEmpty) return [];
+
+    // 2. Ambil list destination_id
+    final destinationIds = savedData
+        .map((e) => e['destination_id'] as String)
+        .toList();
+
+    // 3. Ambil data destinations berdasarkan id
+    final destinationsData = await supabase
+        .from('destinations')
+        .select('*, destination_images(*)')
+        .inFilter('id', destinationIds);
+
+    return (destinationsData as List)
+        .map((e) => Destination.fromJson(e))
         .toList();
   }
 
@@ -98,6 +112,37 @@ class BookingService {
       'status': 'pending',
       if (notes != null) 'notes': notes,
     });
+  }
+
+  // Buat booking baru dan kembalikan ID booking
+  static Future<String> createBookingWithId({
+    required String destinationId,
+    required DateTime checkIn,
+    required DateTime checkOut,
+    required int guests,
+    required double totalPrice,
+    String? notes,
+  }) async {
+    if (_userId == null) {
+      throw Exception('User belum login');
+    }
+
+    final result = await supabase
+        .from('bookings')
+        .insert({
+          'user_id': _userId,
+          'destination_id': destinationId,
+          'check_in': checkIn.toIso8601String().split('T').first,
+          'check_out': checkOut.toIso8601String().split('T').first,
+          'guests': guests,
+          'total_price': totalPrice,
+          'status': 'pending',
+          if (notes != null) 'notes': notes,
+        })
+        .select('id')
+        .single();
+
+    return result['id'] as String;
   }
 
   // Batalkan booking
