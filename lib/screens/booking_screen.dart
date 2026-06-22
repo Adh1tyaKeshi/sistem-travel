@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../models/destination.dart';
 import '../services/saved_booking_services.dart';
+import '../services/notifikasi_services.dart';
 import '../theme.dart';
 import 'write_review_screen.dart';
 
@@ -908,10 +909,21 @@ class BookingDetailScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
+              // Simpan nama destinasi sebelum pop
+              final destName = booking.destination.name;
+
               await BookingService.cancelBooking(booking.id);
+
+              // ── Kirim notif pembatalan ──────────────────────────
+              await NotificationService.showLocalNotification(
+                '❌ Booking Dibatalkan',
+                'Booking $destName telah berhasil dibatalkan.',
+              );
+              // ────────────────────────────────────────────────────
+
               if (context.mounted) {
-                Navigator.pop(context);
-                Navigator.pop(context);
+                Navigator.pop(context); // tutup dialog
+                Navigator.pop(context); // kembali ke BookingScreen
               }
             },
             child: const Text(
