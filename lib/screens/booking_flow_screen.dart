@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/destination.dart';
 import '../services/saved_booking_services.dart';
 import '../services/payment_services.dart';
+import '../services/notifikasi_services.dart';
 import '../theme.dart';
 import 'package:intl/intl.dart';
 
@@ -1114,6 +1115,28 @@ class _VAPaymentScreenState extends State<VAPaymentScreen> {
     });
   }
 
+  // ── NOTIF dipanggil di sini ──────────────────────────────────────
+  Future<void> _onSudahBayar() async {
+    await NotificationService.showLocalNotification(
+      '🎉 Pemesanan Dikonfirmasi!',
+      'Booking ${widget.destination.name} berhasil. Cek detail di tab Bookings.',
+    );
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BookingSuccessScreen(
+          destination: widget.destination,
+          checkIn: widget.checkIn,
+          checkOut: widget.checkOut,
+          totalPrice: widget.totalPrice,
+        ),
+      ),
+      (route) => route.isFirst,
+    );
+  }
+  // ────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1370,19 +1393,9 @@ class _VAPaymentScreenState extends State<VAPaymentScreen> {
               ),
               child: Column(
                 children: [
+                  // ── Tombol "Saya Sudah Bayar" — trigger notif ──
                   GestureDetector(
-                    onTap: () => Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BookingSuccessScreen(
-                          destination: widget.destination,
-                          checkIn: widget.checkIn,
-                          checkOut: widget.checkOut,
-                          totalPrice: widget.totalPrice,
-                        ),
-                      ),
-                      (route) => route.isFirst,
-                    ),
+                    onTap: _onSudahBayar,
                     child: Container(
                       height: 54,
                       width: double.infinity,
@@ -1494,6 +1507,27 @@ class EWalletPaymentScreen extends StatelessWidget {
         ];
     }
   }
+
+  // ── NOTIF dipanggil di sini ──────────────────────────────────────
+  Future<void> _onSudahBayar(BuildContext context) async {
+    await NotificationService.showLocalNotification(
+      '🎉 Pemesanan Dikonfirmasi!',
+      'Booking ${destination.name} berhasil. Cek detail di tab Bookings.',
+    );
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BookingSuccessScreen(
+          destination: destination,
+          checkIn: checkIn,
+          checkOut: checkOut,
+          totalPrice: totalPrice,
+        ),
+      ),
+      (route) => route.isFirst,
+    );
+  }
+  // ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -1740,19 +1774,9 @@ class EWalletPaymentScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
+                  // ── Tombol "Saya Sudah Bayar" — trigger notif ──
                   GestureDetector(
-                    onTap: () => Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BookingSuccessScreen(
-                          destination: destination,
-                          checkIn: checkIn,
-                          checkOut: checkOut,
-                          totalPrice: totalPrice,
-                        ),
-                      ),
-                      (route) => route.isFirst,
-                    ),
+                    onTap: () => _onSudahBayar(context),
                     child: Container(
                       height: 54,
                       width: double.infinity,
