@@ -27,7 +27,6 @@ class PaymentService {
 
     final orderId =
         'LT-${bookingId.substring(0, 8).toUpperCase()}-${DateTime.now().millisecondsSinceEpoch}';
-
     final credentials = base64Encode(utf8.encode('$_serverKey:'));
 
     // Build body
