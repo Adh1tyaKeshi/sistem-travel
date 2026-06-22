@@ -171,14 +171,6 @@ class AuthService {
     }, onConflict: 'id');
   }
 
-  // ── Forgot Password ───────────────────────────────────────────────────────
-  static Future<void> forgotPassword(String email) async {
-    await supabase.auth.resetPasswordForEmail(
-      email,
-      redirectTo: 'io.supabase.luminatravel://reset-callback/',
-    );
-  }
-
   // ── Reset Password ────────────────────────────────────────────────────────
   static Future<void> resetPassword(String newPassword) async {
     await supabase.auth.updateUser(UserAttributes(password: newPassword));
