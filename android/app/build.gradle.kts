@@ -47,3 +47,6 @@ flutter {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")  // ← tambahkan ini
 }
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.addAll(listOf("-Xlint:-options", "-Xlint:-deprecation"))
+}
